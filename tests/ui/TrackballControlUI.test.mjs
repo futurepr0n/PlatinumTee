@@ -31,6 +31,12 @@ test('TrackballControl component renders Three.js control and emits shot request
     assert.match(source, /import \{ interpretTrackballGesture \} from '\.\.\/\.\.\/js\/shotControls\/TrackballGesture\.js';/);
     assert.match(source, /new THREE\.WebGLRenderer\(\{ antialias: true, alpha: true \}\)/);
     assert.match(source, /this\.renderer\.setSize\(150, 150\)/);
+    assert.match(source, /this\.container\.addEventListener\('pointerleave', \(event\) => this\.handlePointerLeave\(event\)\)/);
+    assert.match(source, /result\.valid && this\.isOutsideControl\(point\)/);
+    assert.match(source, /getBoundingClientRect\(\)/);
+    assert.match(source, /scheduleFallbackFinish\(point\)/);
+    assert.match(source, /window\.setTimeout/);
+    assert.match(source, /finishGesture\(point, appendPoint = true\)/);
     assert.match(source, /eventBus\.emit\('trackballShotRequested', result\.intent\)/);
     assert.match(source, /show\(\)/);
     assert.match(source, /hide\(\)/);

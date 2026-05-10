@@ -13,6 +13,7 @@ export class TrackballControl {
         this.scene = null;
         this.camera = null;
         this.ball = null;
+        this.finishTimer = null;
 
         this.initScene();
         this.setupPointerEvents();
@@ -51,6 +52,7 @@ export class TrackballControl {
         this.container.addEventListener('pointerdown', (event) => this.handlePointerDown(event));
         this.container.addEventListener('pointermove', (event) => this.handlePointerMove(event));
         this.container.addEventListener('pointerup', (event) => this.handlePointerUp(event));
+        this.container.addEventListener('pointerleave', (event) => this.handlePointerLeave(event));
         this.container.addEventListener('pointercancel', () => this.resetGesture());
     }
 
@@ -85,13 +87,59 @@ export class TrackballControl {
 
         const result = interpretTrackballGesture(this.points);
         this.updatePowerPreview(result.valid ? result.intent.power : 0);
+
+        if (result.valid && this.isOutsideControl(point)) {
+            this.finishGesture(point, false);
+        } else if (result.valid) {
+            this.scheduleFallbackFinish(point);
+        }
     }
 
     handlePointerUp(event) {
         if (!this.dragging) return;
 
         event.preventDefault();
-        this.points.push(this.getPoint(event));
+        this.finishGesture(this.getPoint(event));
+    }
+
+    handlePointerLeave(event) {
+        if (!this.dragging) return;
+
+        event.preventDefault();
+        this.finishGesture(this.getPoint(event));
+    }
+
+    isOutsideControl(point) {
+        if (!this.container) return false;
+
+        const target = this.canvasHost || this.container;
+        const rect = target.getBoundingClientRect();
+        const margin = 32;
+        return (
+            point.x < rect.left - margin ||
+            point.x > rect.right + margin ||
+            point.y < rect.top - margin ||
+            point.y > rect.bottom + margin
+        );
+    }
+
+    scheduleFallbackFinish(point) {
+        this.clearFallbackFinish();
+        this.finishTimer = window.setTimeout(() => {
+            if (this.dragging) this.finishGesture(point, false);
+        }, 180);
+    }
+
+    clearFallbackFinish() {
+        if (!this.finishTimer) return;
+
+        window.clearTimeout(this.finishTimer);
+        this.finishTimer = null;
+    }
+
+    finishGesture(point, appendPoint = true) {
+        this.clearFallbackFinish();
+        if (appendPoint) this.points.push(point);
         const result = interpretTrackballGesture(this.points);
         this.resetGesture();
 
@@ -101,6 +149,7 @@ export class TrackballControl {
     }
 
     resetGesture() {
+        this.clearFallbackFinish();
         this.dragging = false;
         this.points = [];
         this.updatePowerPreview(0);
