@@ -12,6 +12,16 @@ test('interpretTrackballGesture rejects tiny gestures', () => {
     assert.equal(result.reason, 'gesture-too-small');
 });
 
+test('interpretTrackballGesture rejects malformed gesture points', () => {
+    const result = interpretTrackballGesture([
+        { x: 150, y: 260, t: 0 },
+        { x: Number.NaN, y: 120, t: 90 }
+    ]);
+
+    assert.equal(result.valid, false);
+    assert.equal(result.reason, 'gesture-too-small');
+});
+
 test('interpretTrackballGesture converts a forward flick into a trackball shot intent', () => {
     const result = interpretTrackballGesture([
         { x: 150, y: 260, t: 0 },
