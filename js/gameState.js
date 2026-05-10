@@ -6,6 +6,8 @@ import { getClub, recommendClub } from './clubs.js';
 import * as Camera from './camera.js';
 import { eventBus } from './events.js'; // Import eventBus
 import logger from './utils/logger.js'; // Import logger
+import { createClassicShotIntent, normalizeShotIntent } from './shotControls/ShotIntent.js';
+import { CONTROL_MODES } from './shotControls/controlModes.js';
 
 // Game state enum
 const GameState = {
@@ -24,7 +26,8 @@ let state = {
     direction: 0,
     power: 0,
     accuracy: 0,
-    shotInfo: { power: 0, accuracy: 0, direction: 0, club: '' },
+    shotInfo: { power: 0, accuracy: 0, direction: 0, club: '', controlMode: CONTROL_MODES.CLASSIC },
+    currentControlMode: CONTROL_MODES.CLASSIC,
     currentHole: 1,
     totalHoles: 9,
     strokes: 0,
@@ -272,32 +275,33 @@ function setAccuracy(value) {
     state.strokes++;
     
     // Take the shot
-    takeShot();
+    takeShot(createClassicShotIntent({
+        directionOffset: state.direction,
+        power: state.power,
+        accuracy: state.accuracy
+    }));
 }
 
 /**
  * Take a shot with the current power, accuracy, and direction
  */
-function takeShot() {
-    // Calculate final direction with accuracy effect
-    // Accuracy now directly controls the deviation from the intended direction
-    // 0.5 = perfect accuracy (center of meter)
-    // 0 or 1 = max deviation (±45 degrees)
-    const accuracyEffect = (state.accuracy - 0.5) * 2; // -1 to 1
-    
-    // Calculate angle to hole first
+function takeShot(intentData) {
+    const intent = normalizeShotIntent(intentData);
+    state.power = intent.power;
+    state.accuracy = intent.accuracy;
+
+    const accuracyEffect = (intent.accuracy - 0.5) * 2;
     const angleToHole = calculateAngleToHole();
-    
-    // Calculate final direction - adding deviation to the intended direction
-    // The closer to 0.5 on the accuracy meter, the closer to the intended direction
-    const finalDirection = angleToHole + state.direction + (accuracyEffect * 45);
+    const curveEffect = intent.curve * 20;
+    const finalDirection = angleToHole + intent.directionOffset + (accuracyEffect * 45) + curveEffect;
     
     // Store shot info
     state.shotInfo = {
         power: state.power.toFixed(2),
         accuracy: state.accuracy.toFixed(2),
         direction: finalDirection.toFixed(2),
-        club: state.currentClub
+        club: state.currentClub,
+        controlMode: intent.source
     };
     
     // Update game state
@@ -509,7 +513,7 @@ function nextHole() {
     state.direction = 0;
     state.power = 0;
     state.accuracy = 0;
-    state.shotInfo = { power: 0, accuracy: 0, direction: 0, club: '' };
+    state.shotInfo = { power: 0, accuracy: 0, direction: 0, club: '', controlMode: CONTROL_MODES.CLASSIC };
     state.currentClub = 'driver'; // Default to driver for tee shot
     
     // Set camera to overview mode
@@ -594,7 +598,7 @@ function resetGame() {
     state.direction = 0;
     state.power = 0;
     state.accuracy = 0;
-    state.shotInfo = { power: 0, accuracy: 0, direction: 0, club: '' };
+    state.shotInfo = { power: 0, accuracy: 0, direction: 0, club: '', controlMode: CONTROL_MODES.CLASSIC };
     state.currentClub = 'driver';
     
     // Set camera to overview mode
@@ -602,6 +606,31 @@ function resetGame() {
     
     // Reset game state
     setGameState(GameState.AIMING);
+}
+
+function takeShotFromIntent(intentData) {
+    if (state.gameState !== GameState.AIMING) return false;
+
+    const intent = normalizeShotIntent(intentData);
+    if (intent.source !== state.currentControlMode) return false;
+
+    state.strokes++;
+    takeShot(intent);
+    return true;
+}
+
+function setControlMode(controlMode) {
+    if (state.gameState !== GameState.AIMING) return false;
+    if (!Object.values(CONTROL_MODES).includes(controlMode)) return false;
+
+    state.currentControlMode = controlMode;
+    eventBus.emit('controlModeChanged', { controlMode, fullState: getFullState() });
+    updateInfo();
+    return true;
+}
+
+function getControlMode() {
+    return state.currentControlMode;
 }
 
 // Export the module functions
@@ -623,5 +652,8 @@ export {
     getCurrentClub,
     // registerCallbacks removed
     getScoreCard,
-    resetGame
+    resetGame,
+    takeShotFromIntent,
+    setControlMode,
+    getControlMode
 };
