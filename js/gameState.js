@@ -233,13 +233,15 @@ function updateInfo() {
  */
 function startPowerMeter() {
     // Only allow starting power meter in aiming state
-    if (state.gameState !== GameState.AIMING) return;
+    if (state.gameState !== GameState.AIMING) return false;
+    if (state.currentControlMode !== CONTROL_MODES.CLASSIC) return false;
     
     // Change game state
     setGameState(GameState.POWER);
     
     // Reset power
     state.power = 0;
+    return true;
 }
 
 /**
@@ -438,6 +440,7 @@ function completeHole() {
         scoreName,
         strokes: state.strokes,
         relativeToPar,
+        shotInfo: { ...state.shotInfo },
         scoreCard: state.scoreCard,
         fullState: getFullState()
     });
@@ -615,7 +618,10 @@ function takeShotFromIntent(intentData) {
     if (intent.source !== state.currentControlMode) return false;
 
     state.strokes++;
-    takeShot(intent);
+    takeShot(normalizeShotIntent({
+        ...intent,
+        directionOffset: state.direction + intent.directionOffset
+    }));
     return true;
 }
 
@@ -631,6 +637,10 @@ function setControlMode(controlMode) {
 
 function getControlMode() {
     return state.currentControlMode;
+}
+
+function getShotInfo() {
+    return { ...state.shotInfo };
 }
 
 // Export the module functions
@@ -655,5 +665,6 @@ export {
     resetGame,
     takeShotFromIntent,
     setControlMode,
-    getControlMode
+    getControlMode,
+    getShotInfo
 };

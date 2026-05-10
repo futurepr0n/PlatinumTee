@@ -30,4 +30,16 @@ test('keyboard advance emits the game manager button simulation event', async ()
     assert.doesNotMatch(controlsSource, /simulateButtonPressRequested/);
     assert.match(controlsSource, /eventBus\.emit\('simulateSpecificButtonPressRequested'\)/);
     assert.match(gameManagerSource, /eventBus\.on\('simulateSpecificButtonPressRequested'/);
+    assert.match(gameManagerSource, /if \(gameState === GameState\.AIMING\) \{[\s\S]*GameState\.startPowerMeter\(\);/);
+    assert.doesNotMatch(gameManagerSource, /eventBus\.emit\('swingButtonClicked'\)/);
+});
+
+test('hole completion passes shot info from event payload to results panel', async () => {
+    const gameStateSource = await readProjectFile('js/gameState.js');
+    const gameManagerSource = await readProjectFile('js/gameManager.js');
+
+    assert.match(gameStateSource, /eventBus\.emit\('holeComplete', \{[\s\S]*shotInfo: \{ \.\.\.state\.shotInfo \}/);
+    assert.match(gameManagerSource, /this\.handleHoleComplete\(data\.scoreName, data\.shotInfo, data\.strokes, data\.relativeToPar, data\.scoreCard\)/);
+    assert.match(gameManagerSource, /displayResults\([\s\S]*shotInfo,[\s\S]*distanceYards/);
+    assert.doesNotMatch(gameManagerSource, /GameState\.shotInfo/);
 });

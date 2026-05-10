@@ -84,7 +84,7 @@ export class GameManager {
         });
 
         eventBus.on('holeComplete', (data) => {
-            this.handleHoleComplete(data.scoreName, data.strokes, data.relativeToPar, data.scoreCard);
+            this.handleHoleComplete(data.scoreName, data.shotInfo, data.strokes, data.relativeToPar, data.scoreCard);
         });
     }
 
@@ -140,7 +140,7 @@ export class GameManager {
             const gameState = data?.gameState || GameState.getGameState();
 
             if (gameState === GameState.AIMING) {
-                eventBus.emit('swingButtonClicked');
+                GameState.startPowerMeter();
             } else if (gameState === GameState.POWER) {
                 eventBus.emit('powerButtonClicked');
             } else if (gameState === GameState.ACCURACY) {
@@ -170,7 +170,7 @@ export class GameManager {
         UI.showTemporaryMessage(message);
     }
 
-    handleHoleComplete(scoreName, strokes, relativeToPar, scoreCard) {
+    handleHoleComplete(scoreName, shotInfo, strokes, relativeToPar, scoreCard) {
         const shotDistance = Math.sqrt(
             Math.pow(this.ball.position.x, 2) +
             Math.pow(this.ball.position.z, 2)
@@ -179,7 +179,7 @@ export class GameManager {
         
         UI.resultsPanel.displayResults(
             `${scoreName}! (${strokes} strokes)`,
-            GameState.shotInfo, // GameState.shotInfo must be passed directly here from GameState for results panel
+            shotInfo,
             distanceYards,
             strokes,
             relativeToPar
