@@ -14,6 +14,7 @@ import { GameButtons } from './js/ui/GameButtons.js';
 import { DirectionPointer } from './js/ui/DirectionPointer.js';
 import { TemporaryMessage } from './js/ui/TemporaryMessage.js';
 import { ControlModeSwitcher } from './js/ui/ControlModeSwitcher.js';
+import { TrackballControl } from './js/ui/TrackballControl.js';
 
 
 
@@ -33,6 +34,7 @@ let gameButtons;
 let directionPointer;
 let temporaryMessage;
 let controlModeSwitcher;
+let trackballControl;
 
 /**
  * Initialize the UI module
@@ -60,6 +62,7 @@ function initUI() {
 
     directionPointer = new DirectionPointer('direction-indicator', 'target-flag');
     temporaryMessage = new TemporaryMessage(); // No init() needed for this component
+    trackballControl = new TrackballControl('trackball-control', 'trackball-canvas', 'trackball-power-preview');
 }
 
 
@@ -119,6 +122,11 @@ function showAimingUI(info) {
     if (info.currentControlMode === CONTROL_MODES.TRACKBALL) {
         gameButtons.hideAllButtons();
     }
+    if (info.currentControlMode === CONTROL_MODES.TRACKBALL) {
+        trackballControl.show();
+    } else {
+        trackballControl.hide();
+    }
     
     // Hide meters
     powerMeter.hide();
@@ -144,6 +152,7 @@ function showPowerUI() {
     // Show/hide relevant buttons
     gameButtons.showPowerButton();
     controlModeSwitcher.hide();
+    trackballControl.hide();
     
     // Show power meter
     powerMeter.show();
@@ -168,6 +177,7 @@ function showAccuracyUI() {
     // Show/hide relevant buttons
     gameButtons.showAccuracyButton();
     controlModeSwitcher.hide();
+    trackballControl.hide();
     
     // Show accuracy meter
     powerMeter.hide(); // Hide power meter
@@ -185,6 +195,7 @@ function showInFlightUI(info) {
     // Hide all interactive elements
     gameButtons.hideAllButtons();
     controlModeSwitcher.hide();
+    trackballControl.hide();
     powerMeter.hide();
     accuracyMeter.hide();
     directionPointer.hide();
@@ -231,5 +242,6 @@ export {
     clubSelection, // Export the clubSelection instance
     gameButtons, // Export the gameButtons instance
     directionPointer, // Export the directionPointer instance
-    controlModeSwitcher // Export the controlModeSwitcher instance
+    controlModeSwitcher, // Export the controlModeSwitcher instance
+    trackballControl // Export the trackballControl instance
 };
