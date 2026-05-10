@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golf Game with Realistic Distances</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="container"></div>
+    <div id="info">Use ← → arrow keys to adjust direction, then press the SWING button to start!</div>
+    <div id="club-select">
+        <div class="club-item" data-club="driver">1: Driver</div>
+        <div class="club-item" data-club="wood3">2: 3W</div>
+        <div class="club-item" data-club="hybrid">3: Hybrid</div>
+        <div class="club-item" data-club="iron5">4: 5 Iron</div>
+        <div class="club-item" data-club="iron7">5: 7 Iron</div>
+        <div class="club-item" data-club="iron9">6: 9 Iron</div>
+        <div class="club-item" data-club="pitchingWedge">7: PW</div>
+        <div class="club-item" data-club="sandWedge">8: SW</div>
+        <div class="club-item" data-club="putter">9: Putter</div>
+    </div>
+    <div id="direction-indicator"></div>
+    <div id="target-flag">🚩</div>
+    <div id="shot-power-info">Shot Power: 0%</div>
+    <div id="controls">
+        <div id="power-meter" class="meter">
+            <div id="power-indicator"></div>
+            <div id="meter-label">POWER - HIGHER = FARTHER</div>
+        </div>
+        <div id="accuracy-meter" class="meter">
+            <div id="accuracy-container">
+                <div class="acc-red"></div>
+                <div class="acc-yellow"></div>
+                <div class="acc-green"></div>
+                <div class="acc-yellow"></div>
+                <div class="acc-red"></div>
+            </div>
+            <div id="marker"></div>
+            <div id="meter-label">ACCURACY - CLICK WHEN CENTERED!</div>
+        </div>
+        <button id="swing-btn">SWING</button>
+        <button id="power-btn">SET POWER</button>
+        <button id="accuracy-btn">SET ACCURACY</button>
+    </div>
+    <div id="status">Direction: 0°</div>
+    <div id="wind-info">Wind: 0 mph</div>
+    <div id="hole-info">Hole #1 - Par 3 - 0 yards</div>
+    <div id="results">
+        <h3 id="result-text">Shot Complete!</h3>
+        <div id="shot-info"></div>
+        <div id="score-card">
+            <h4>Score Card</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Hole</th>
+                        <th>Par</th>
+                        <th>Distance</th>
+                        <th>Strokes</th>
+                        <th>+/-</th>
+                    </tr>
+                </thead>
+                <tbody id="score-body">
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3">Total</td>
+                        <td id="total-strokes">0</td>
+                        <td id="total-par">0</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <button id="next-hole-btn">NEXT HOLE</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

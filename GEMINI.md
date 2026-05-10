@@ -1,0 +1,1 @@
+This project is a 3D golf game built with vanilla JavaScript and the Three.js library. The code is organized into modules within the `js/` directory, with `js/main.js` serving as the main entry point. UI updates are handled in `ui.js`, and the game state is managed in `js/gameState.js`.
