@@ -123,6 +123,16 @@ export class GameManager {
             if (!Controls.areControlsEnabled()) return;
             GameState.setCurrentClub(clubName);
         });
+
+        eventBus.on('controlModeChangeRequested', (controlMode) => {
+            if (!Controls.areControlsEnabled()) return;
+            GameState.setControlMode(controlMode);
+        });
+
+        eventBus.on('trackballShotRequested', (intent) => {
+            if (!Controls.areControlsEnabled()) return;
+            GameState.takeShotFromIntent(intent);
+        });
         
         eventBus.on('simulateSpecificButtonPressRequested', (data) => {
             if (!Controls.areControlsEnabled()) return;
