@@ -7,18 +7,20 @@ import * as Camera from './camera.js';
 import * as UI from '../ui.js';
 import * as Controls from './controls.js';
 import { getClub } from './clubs.js';
+import { followShadowLight } from './lighting.js';
 import { eventBus } from './events.js';
 import { HostSession } from './net/HostSession.js';
 import { LobbyPanel } from './ui/LobbyPanel.js';
 import logger from './utils/logger.js'; // Import logger
 
 export class GameManager {
-    constructor(scene, camera, renderer, ball, directionArrow) {
+    constructor(scene, camera, renderer, ball, directionArrow, shadowLight = null) {
         this.scene = scene;
         this.camera = camera;
         this.renderer = renderer;
         this.ball = ball;
         this.directionArrow = directionArrow;
+        this.shadowLight = shadowLight;
 
         this.animationFrame = null;
         this.hostSession = null;
@@ -256,6 +258,7 @@ export class GameManager {
             GameState.updateBallPhysics();
         }
         
+        followShadowLight(this.shadowLight, this.ball.position);
         this.renderer.render(this.scene, this.camera);
     }
 
