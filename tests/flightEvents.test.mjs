@@ -19,8 +19,10 @@ test('a flight emits ballMoved per frame but gameStateChanged only on transition
     let stateEvents = 0;
     let moveEvents = 0;
     const onState = () => stateEvents++;
+    const moveStates = [];
     const onMove = data => {
         moveEvents++;
+        moveStates.push(GameState.getGameState());
         assert.equal(typeof data.distanceToHole, 'number');
     };
     eventBus.on('gameStateChanged', onState);
@@ -36,6 +38,7 @@ test('a flight emits ballMoved per frame but gameStateChanged only on transition
     eventBus.off('ballMoved', onMove);
 
     assert.ok(frames > 20);
-    assert.equal(moveEvents, frames);
+    assert.equal(moveEvents, frames - 1);
+    assert.ok(moveStates.every(st => st === GameState.GameState.IN_FLIGHT));
     assert.ok(stateEvents <= 5, `expected only transition events, got ${stateEvents}`);
 });

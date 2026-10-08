@@ -390,7 +390,9 @@ function updateBallPhysics() {
     // Update camera to follow ball
     Camera.updateCamera(state.ball.position);
     
-    eventBus.emit('ballMoved', { distanceToHole: getDistanceToHole() });
+    if (isStillMoving) {
+        eventBus.emit('ballMoved', { distanceToHole: getDistanceToHole() });
+    }
     
     return isStillMoving;
 }
