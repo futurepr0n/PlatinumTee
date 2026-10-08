@@ -8,6 +8,8 @@ import * as UI from '../ui.js';
 import * as Controls from './controls.js';
 import { getClub } from './clubs.js';
 import { eventBus } from './events.js';
+import { HostSession } from './net/HostSession.js';
+import { LobbyPanel } from './ui/LobbyPanel.js';
 import logger from './utils/logger.js'; // Import logger
 
 export class GameManager {
@@ -19,6 +21,7 @@ export class GameManager {
         this.directionArrow = directionArrow;
 
         this.animationFrame = null;
+        this.hostSession = null;
     }
 
     start() {
@@ -42,6 +45,10 @@ export class GameManager {
         // Initialize controls last, after all other modules
         Controls.initControls();
         
+        if (new URLSearchParams(window.location.search).has('host')) {
+            this.startHostSession();
+        }
+
         // Generate the first hole
         this.generateNewHole();
         
@@ -125,6 +132,7 @@ export class GameManager {
         });
 
         eventBus.on('controlModeChangeRequested', (controlMode) => {
+            if (this.hostSession) return;
             if (!Controls.areControlsEnabled()) return;
             GameState.setControlMode(controlMode);
         });
@@ -170,7 +178,30 @@ export class GameManager {
         UI.showTemporaryMessage(message);
     }
 
+    startHostSession() {
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
+        const lobby = new LobbyPanel({
+            onStart: () => this.hostSession.startRound(),
+            onNextHole: () => this.hostSession.nextHole()
+        });
+
+        this.hostSession = new HostSession({
+            socket: { send: data => socket.readyState === WebSocket.OPEN && socket.send(data) },
+            game: GameState,
+            bus: eventBus,
+            requestNewHole: () => this.generateNewHole(),
+            onChange: view => lobby.render(view)
+        });
+
+        socket.addEventListener('open', () => this.hostSession.open());
+        socket.addEventListener('message', event => this.hostSession.handleMessage(event.data));
+        socket.addEventListener('close', () => lobby.render({ ...this.hostSession.view(), phase: 'disconnected' }));
+        lobby.render(this.hostSession.view());
+    }
+
     handleHoleComplete(scoreName, shotInfo, strokes, relativeToPar, scoreCard) {
+        if (this.hostSession) return;
         const shotDistance = Math.sqrt(
             Math.pow(this.ball.position.x, 2) +
             Math.pow(this.ball.position.z, 2)

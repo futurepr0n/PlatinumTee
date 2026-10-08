@@ -334,3 +334,44 @@ button {
     font-size: 12px;
     font-weight: bold;
 }
+
+#lobby-panel {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 20;
+    min-width: 260px;
+    max-width: min(420px, calc(100vw - 32px));
+    padding: 16px;
+    border-radius: 12px;
+    background: rgba(10, 30, 20, 0.85);
+    color: #fff;
+    font-family: inherit;
+}
+
+#lobby-panel .lobby-code {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+}
+
+#lobby-panel .lobby-url {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    word-break: break-all;
+}
+
+#lobby-panel ol {
+    margin: 12px 0;
+    padding-left: 20px;
+}
+
+#lobby-panel button {
+    margin-right: 8px;
+    padding: 8px 16px;
+}
+
+#lobby-panel.compact .lobby-url,
+#lobby-panel.compact .lobby-status {
+    display: none;
+}
