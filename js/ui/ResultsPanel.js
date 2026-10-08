@@ -23,6 +23,19 @@ export class ResultsPanel {
         }
     }
 
+    displayRoundSummary(summaryText) {
+        if (!this.resultsEl || !this.resultTextEl || !this.shotInfoEl) return;
+
+        this.resultTextEl.textContent = summaryText;
+        this.shotInfoEl.replaceChildren();
+        const nextButton = document.getElementById('next-hole-btn');
+        if (nextButton) {
+            nextButton.textContent = 'NEW ROUND';
+            nextButton.style.display = 'block';
+        }
+        this.resultsEl.style.display = 'block';
+    }
+
     hide() {
         if (this.resultsEl) {
             this.resultsEl.style.display = 'none';

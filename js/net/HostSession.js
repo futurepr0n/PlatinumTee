@@ -3,7 +3,7 @@ import { TurnManager } from './TurnManager.js';
 import { normalizeShotIntent } from '../shotControls/ShotIntent.js';
 import { CONTROL_MODES } from '../shotControls/controlModes.js';
 
-const TEE_POSITION = Object.freeze({ x: 0, y: 0.2, z: 0 });
+const TEE_POSITION = Object.freeze({ x: 0, y: 0.1, z: 0 });
 
 export class HostSession {
     constructor({ socket, game, bus, requestNewHole, onChange = () => {}, turns = new TurnManager() }) {

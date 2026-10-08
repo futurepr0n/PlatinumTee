@@ -9,7 +9,7 @@ export class Scorecard {
         this.totalParEl = document.getElementById(totalParElId);
         this.nextHoleBtn = document.getElementById(nextHoleBtnId); // Need reference to update text
     }
-    updateScoreCard(scoreCard) {
+    updateScoreCard(scoreCard, totalHoles = 9) {
         if (!this.scoreBodyEl || !this.totalStrokesEl || !this.totalParEl || !this.nextHoleBtn) {
             logger.error("Scorecard elements not initialized.");
             return;
@@ -56,7 +56,7 @@ export class Scorecard {
         this.totalParEl.textContent = totalToPar > 0 ? "+" + totalToPar : totalToPar;
 
         // Update next hole button text for last hole
-        if (scoreCard.length === 9) { // Magic number: totalHoles from GameState
+        if (scoreCard.length >= totalHoles) { // Magic number: totalHoles from GameState
             this.nextHoleBtn.textContent = 'FINISH ROUND';
         } else {
             this.nextHoleBtn.textContent = 'NEXT HOLE';

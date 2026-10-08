@@ -22,6 +22,17 @@ export class GameManager {
 
         this.animationFrame = null;
         this.hostSession = null;
+        this.roundSummaryShown = false;
+    }
+
+    showRoundSummary() {
+        const scoreCard = GameState.getScoreCard();
+        const strokes = scoreCard.reduce((sum, hole) => sum + hole.strokes, 0);
+        const toPar = scoreCard.reduce((sum, hole) => sum + hole.toPar, 0);
+        const toParText = toPar === 0 ? 'E' : toPar > 0 ? `+${toPar}` : String(toPar);
+
+        UI.resultsPanel.displayRoundSummary(`Round complete! ${strokes} strokes (${toParText})`);
+        this.roundSummaryShown = true;
     }
 
     start() {
@@ -121,6 +132,17 @@ export class GameManager {
 
         eventBus.on('nextHoleButtonClicked', () => {
             if (!acceptsLocalInput()) return;
+            if (this.roundSummaryShown) {
+                this.roundSummaryShown = false;
+                UI.resultsPanel.hide();
+                GameState.resetGame();
+                this.generateNewHole();
+                return;
+            }
+            if (GameState.isRoundComplete()) {
+                this.showRoundSummary();
+                return;
+            }
             if (GameState.nextHole()) {
                 this.generateNewHole();
             }

@@ -21,6 +21,8 @@ const GameState = {
     COMPLETE: 'complete'
 };
 
+const TEE_BALL_POSITION = Object.freeze({ x: 0, y: 0.1, z: 0 });
+
 // Centralized game state object
 let state = {
     gameState: GameState.INITIALIZING,
@@ -554,7 +556,7 @@ function nextHole() {
     
     // Reset ball position
     if (state.ball) {
-        state.ball.position.set(0, 0.2, 0);
+        state.ball.position.set(TEE_BALL_POSITION.x, TEE_BALL_POSITION.y, TEE_BALL_POSITION.z);
         state.ball.rotation.set(0, 0, 0);
     }
     
@@ -640,10 +642,12 @@ function resetGame() {
     
     // Clear score card
     state.scoreCard = [];
+    state.strokes = 0;
+    state.shotOrigin = null;
     
     // Reset ball position
     if (state.ball) {
-        state.ball.position.set(0, 0.2, 0);
+        state.ball.position.set(TEE_BALL_POSITION.x, TEE_BALL_POSITION.y, TEE_BALL_POSITION.z);
         state.ball.rotation.set(0, 0, 0);
     }
     
@@ -697,6 +701,10 @@ function getControlMode() {
     return state.currentControlMode;
 }
 
+function isRoundComplete() {
+    return state.currentHole === state.totalHoles && state.gameState === GameState.COMPLETE;
+}
+
 function getShotInfo() {
     return { ...state.shotInfo };
 }
@@ -704,6 +712,8 @@ function getShotInfo() {
 // Export the module functions
 export {
     GameState,
+    TEE_BALL_POSITION,
+    isRoundComplete,
     initGameState,
     setGameState,
     getGameState,
