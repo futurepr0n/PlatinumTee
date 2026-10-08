@@ -40,13 +40,13 @@ const HILL_Z_OFFSET = 50;
 const HILL_INITIAL_HEIGHT_MULTIPLIER = 6; // Implicit factor for hill height before scale.y
 
 // Hole
-const HOLE_RADIUS_VISUAL = 0.15; // Visual radius of the hole cylinder
+const HOLE_RADIUS_VISUAL = 0.1875; // Slightly larger arcade cup for clearer capture
 const HOLE_HEIGHT_VISUAL = 0.1;
 const HOLE_COLOR = 0x000000;
 const HOLE_VERTICAL_OFFSET = 0.05; // Position above terrain height
 
 // Green
-const GREEN_RADIUS = 5;
+const GREEN_RADIUS = 14;
 const GREEN_COLOR = 0x2e7d32;
 const GREEN_VERTICAL_OFFSET = 0.06; // Position above terrain height
 
@@ -507,5 +507,6 @@ export {
     generateNewHole,
     clearCourse,
     getTerrainHeightAt,
-    getTerrainData
+    getTerrainData,
+    HOLE_RADIUS_VISUAL
 };

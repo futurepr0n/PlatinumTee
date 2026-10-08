@@ -8,6 +8,8 @@ import * as UI from '../ui.js';
 import * as Controls from './controls.js';
 import { getClub } from './clubs.js';
 import { eventBus } from './events.js';
+import { HostSession } from './net/HostSession.js';
+import { LobbyPanel } from './ui/LobbyPanel.js';
 import logger from './utils/logger.js'; // Import logger
 
 export class GameManager {
@@ -19,6 +21,7 @@ export class GameManager {
         this.directionArrow = directionArrow;
 
         this.animationFrame = null;
+        this.hostSession = null;
     }
 
     start() {
@@ -42,6 +45,10 @@ export class GameManager {
         // Initialize controls last, after all other modules
         Controls.initControls();
         
+        if (new URLSearchParams(window.location.search).has('host')) {
+            this.startHostSession();
+        }
+
         // Generate the first hole
         this.generateNewHole();
         
@@ -84,53 +91,65 @@ export class GameManager {
         });
 
         eventBus.on('holeComplete', (data) => {
-            this.handleHoleComplete(data.scoreName, data.strokes, data.relativeToPar, data.scoreCard);
+            this.handleHoleComplete(data.scoreName, data.shotInfo, data.strokes, data.relativeToPar, data.scoreCard);
         });
     }
 
     setupUIEventListeners() {
+        const acceptsLocalInput = () => !this.hostSession && Controls.areControlsEnabled();
+
         eventBus.on('swingButtonClicked', () => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             GameState.startPowerMeter();
         });
 
         eventBus.on('powerButtonClicked', () => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             const powerValue = UI.powerMeter.stopAnimation();
             GameState.setPower(powerValue);
         });
 
         eventBus.on('accuracyButtonClicked', () => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             const accuracyValue = UI.accuracyMeter.stopAnimation();
             GameState.setAccuracy(accuracyValue);
         });
 
         eventBus.on('nextHoleButtonClicked', () => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             if (GameState.nextHole()) {
                 this.generateNewHole();
             }
         });
 
         eventBus.on('adjustDirectionRequested', (amount) => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             GameState.adjustDirection(amount);
         });
 
         eventBus.on('clubSelected', (clubName) => {
             if (typeof clubName !== 'string') return;
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             GameState.setCurrentClub(clubName);
+        });
+
+        eventBus.on('controlModeChangeRequested', (controlMode) => {
+            if (!acceptsLocalInput()) return;
+            GameState.setControlMode(controlMode);
+        });
+
+        eventBus.on('trackballShotRequested', (intent) => {
+            if (!acceptsLocalInput()) return;
+            GameState.takeShotFromIntent(intent);
         });
         
         eventBus.on('simulateSpecificButtonPressRequested', (data) => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             
             const gameState = data?.gameState || GameState.getGameState();
 
             if (gameState === GameState.AIMING) {
-                eventBus.emit('swingButtonClicked');
+                GameState.startPowerMeter();
             } else if (gameState === GameState.POWER) {
                 eventBus.emit('powerButtonClicked');
             } else if (gameState === GameState.ACCURACY) {
@@ -160,7 +179,30 @@ export class GameManager {
         UI.showTemporaryMessage(message);
     }
 
-    handleHoleComplete(scoreName, strokes, relativeToPar, scoreCard) {
+    startHostSession() {
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
+        const lobby = new LobbyPanel({
+            onStart: () => this.hostSession.startRound(),
+            onNextHole: () => this.hostSession.nextHole()
+        });
+
+        this.hostSession = new HostSession({
+            socket: { send: data => socket.readyState === WebSocket.OPEN && socket.send(data) },
+            game: GameState,
+            bus: eventBus,
+            requestNewHole: () => this.generateNewHole(),
+            onChange: view => lobby.render(view)
+        });
+
+        socket.addEventListener('open', () => this.hostSession.open());
+        socket.addEventListener('message', event => this.hostSession.handleMessage(event.data));
+        socket.addEventListener('close', () => lobby.render({ ...this.hostSession.view(), phase: 'disconnected' }));
+        lobby.render(this.hostSession.view());
+    }
+
+    handleHoleComplete(scoreName, shotInfo, strokes, relativeToPar, scoreCard) {
+        if (this.hostSession) return;
         const shotDistance = Math.sqrt(
             Math.pow(this.ball.position.x, 2) +
             Math.pow(this.ball.position.z, 2)
@@ -169,7 +211,7 @@ export class GameManager {
         
         UI.resultsPanel.displayResults(
             `${scoreName}! (${strokes} strokes)`,
-            GameState.shotInfo, // GameState.shotInfo must be passed directly here from GameState for results panel
+            shotInfo,
             distanceYards,
             strokes,
             relativeToPar

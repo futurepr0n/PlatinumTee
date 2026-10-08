@@ -1,0 +1,74 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const root = new URL('../../', import.meta.url);
+
+async function readProjectFile(path) {
+    return readFile(new URL(path, root), 'utf8');
+}
+
+test('index.html places trackball control inside controls after accuracy meter', async () => {
+    const html = await readProjectFile('index.html');
+    const accuracyIndex = html.indexOf('<div id="accuracy-meter" class="meter">');
+    const trackballIndex = html.indexOf('<div id="trackball-control">');
+    const swingIndex = html.indexOf('<button id="swing-btn">');
+
+    assert.notEqual(accuracyIndex, -1);
+    assert.notEqual(trackballIndex, -1);
+    assert.ok(trackballIndex > accuracyIndex);
+    assert.ok(trackballIndex < swingIndex);
+    assert.match(html, /<div id="trackball-stage">/);
+    assert.match(html, /<div class="trackball-step trackball-step-back">/);
+    assert.match(html, /<b>Pull back<\/b>/);
+    assert.match(html, /<div class="trackball-step trackball-step-forward">/);
+    assert.match(html, /<b>Drive forward<\/b>/);
+    assert.match(html, /<div id="trackball-canvas"><\/div>/);
+    assert.match(html, /<div id="trackball-guide">Pull back, then drive forward through the ball<\/div>/);
+    assert.match(html, /<div id="trackball-power-preview">Power 0%<\/div>/);
+});
+
+test('TrackballControl component renders Three.js control and emits shot requests', async () => {
+    const source = await readProjectFile('js/ui/TrackballControl.js');
+
+    assert.match(source, /import \* as THREE from 'three';/);
+    assert.match(source, /import \{ eventBus \} from '\.\.\/\.\.\/js\/events\.js';/);
+    assert.match(source, /import \{ interpretTrackballGesture \} from '\.\.\/\.\.\/js\/shotControls\/TrackballGesture\.js';/);
+    assert.match(source, /new THREE\.WebGLRenderer\(\{ antialias: true, alpha: true \}\)/);
+    assert.match(source, /this\.renderer\.setPixelRatio\(Math\.min\(window\.devicePixelRatio \|\| 1, 2\)\)/);
+    assert.match(source, /this\.renderer\.setSize\(TRACKBALL_SIZE, TRACKBALL_SIZE\)/);
+    assert.match(source, /new THREE\.TorusGeometry/);
+    assert.match(source, /addSurfaceMark\(theta, phi, radius\)/);
+    assert.match(source, /new THREE\.CircleGeometry\(radius, 24\)/);
+    assert.match(source, /this\.ball\.add\(mark\)/);
+    assert.match(source, /updateVisualPhysics\(\)/);
+    assert.match(source, /this\.spinVelocity\.x \+= \(point\.y - previous\.y\) \* SPIN_INPUT_SCALE/);
+    assert.match(source, /this\.spinVelocity\.y \+= \(point\.x - previous\.x\) \* SPIN_INPUT_SCALE/);
+    assert.match(source, /this\.ball\.rotation\.x \+= this\.spinVelocity\.x \* dt/);
+    assert.match(source, /this\.ball\.rotation\.y \+= this\.spinVelocity\.y \* dt/);
+    assert.doesNotMatch(source, /this\.ballGroup\.position\.set/);
+    assert.doesNotMatch(source, /this\.ball\.rotation\.z \+= this\.spinVelocity\.y/);
+    assert.doesNotMatch(source, /this\.targetPosition/);
+    assert.doesNotMatch(source, /this\.visualVelocity/);
+    assert.match(source, /this\.container\.addEventListener\('pointerleave', \(event\) => this\.handlePointerLeave\(event\)\)/);
+    assert.match(source, /result\.valid && this\.isOutsideControl\(point\)/);
+    assert.match(source, /getBoundingClientRect\(\)/);
+    assert.match(source, /scheduleFallbackFinish\(point\)/);
+    assert.match(source, /window\.setTimeout/);
+    assert.match(source, /finishGesture\(point, appendPoint = true\)/);
+    assert.match(source, /eventBus\.emit\('trackballShotRequested', result\.intent\)/);
+    assert.match(source, /show\(\)/);
+    assert.match(source, /hide\(\)/);
+    assert.match(source, /reset\(\)/);
+});
+
+test('ui.js initializes, toggles, and exports trackball control', async () => {
+    const source = await readProjectFile('ui.js');
+
+    assert.match(source, /import \{ TrackballControl \} from '\.\/js\/ui\/TrackballControl\.js';/);
+    assert.match(source, /let trackballControl;/);
+    assert.match(source, /trackballControl = new TrackballControl\('trackball-control', 'trackball-canvas', 'trackball-power-preview'\);/);
+    assert.match(source, /info\.currentControlMode === CONTROL_MODES\.TRACKBALL[\s\S]*trackballControl\.show\(\)/);
+    assert.match(source, /trackballControl\.hide\(\)/);
+    assert.match(source, /trackballControl\s*\/\/ Export the trackballControl instance/);
+});

@@ -6,6 +6,8 @@ import { getClub, recommendClub } from './clubs.js';
 import * as Camera from './camera.js';
 import { eventBus } from './events.js'; // Import eventBus
 import logger from './utils/logger.js'; // Import logger
+import { createClassicShotIntent, normalizeShotIntent } from './shotControls/ShotIntent.js';
+import { CONTROL_MODES } from './shotControls/controlModes.js';
 
 // Game state enum
 const GameState = {
@@ -24,7 +26,8 @@ let state = {
     direction: 0,
     power: 0,
     accuracy: 0,
-    shotInfo: { power: 0, accuracy: 0, direction: 0, club: '' },
+    shotInfo: { power: 0, accuracy: 0, direction: 0, club: '', controlMode: CONTROL_MODES.CLASSIC },
+    currentControlMode: CONTROL_MODES.CLASSIC,
     currentHole: 1,
     totalHoles: 9,
     strokes: 0,
@@ -131,6 +134,7 @@ function adjustDirection(amount) {
     
     // Update direction arrow
     updateDirectionArrow();
+    updateShotSetupCamera();
     
     eventBus.emit('directionUpdated', { direction: state.direction, fullState: getFullState() });
     
@@ -151,6 +155,7 @@ function setDirection(value) {
     
     // Update direction arrow
     updateDirectionArrow();
+    updateShotSetupCamera();
     
     eventBus.emit('directionUpdated', { direction: state.direction, fullState: getFullState() });
     
@@ -173,6 +178,17 @@ function updateDirectionArrow() {
     // Update arrow rotation
     state.directionArrow.rotation.x = Math.PI / 2; // Keep pointing forward
     state.directionArrow.rotation.z = finalDirection * (Math.PI / 180);
+}
+
+function updateShotSetupCamera() {
+    if (!state.ball) return;
+
+    Camera.setShotSetupMode(
+        state.ball.position,
+        calculateAngleToHole(),
+        state.currentClub,
+        state.holeData.position
+    );
 }
 
 /**
@@ -230,13 +246,15 @@ function updateInfo() {
  */
 function startPowerMeter() {
     // Only allow starting power meter in aiming state
-    if (state.gameState !== GameState.AIMING) return;
+    if (state.gameState !== GameState.AIMING) return false;
+    if (state.currentControlMode !== CONTROL_MODES.CLASSIC) return false;
     
     // Change game state
     setGameState(GameState.POWER);
     
     // Reset power
     state.power = 0;
+    return true;
 }
 
 /**
@@ -272,32 +290,33 @@ function setAccuracy(value) {
     state.strokes++;
     
     // Take the shot
-    takeShot();
+    takeShot(createClassicShotIntent({
+        directionOffset: state.direction,
+        power: state.power,
+        accuracy: state.accuracy
+    }));
 }
 
 /**
  * Take a shot with the current power, accuracy, and direction
  */
-function takeShot() {
-    // Calculate final direction with accuracy effect
-    // Accuracy now directly controls the deviation from the intended direction
-    // 0.5 = perfect accuracy (center of meter)
-    // 0 or 1 = max deviation (±45 degrees)
-    const accuracyEffect = (state.accuracy - 0.5) * 2; // -1 to 1
-    
-    // Calculate angle to hole first
+function takeShot(intentData) {
+    const intent = normalizeShotIntent(intentData);
+    state.power = intent.power;
+    state.accuracy = intent.accuracy;
+
+    const accuracyEffect = (intent.accuracy - 0.5) * 2;
     const angleToHole = calculateAngleToHole();
-    
-    // Calculate final direction - adding deviation to the intended direction
-    // The closer to 0.5 on the accuracy meter, the closer to the intended direction
-    const finalDirection = angleToHole + state.direction + (accuracyEffect * 45);
+    const curveEffect = intent.curve * 20;
+    const finalDirection = angleToHole + intent.directionOffset + (accuracyEffect * 45) + curveEffect;
     
     // Store shot info
     state.shotInfo = {
         power: state.power.toFixed(2),
         accuracy: state.accuracy.toFixed(2),
         direction: finalDirection.toFixed(2),
-        club: state.currentClub
+        club: state.currentClub,
+        controlMode: intent.source
     };
     
     // Update game state
@@ -434,38 +453,32 @@ function completeHole() {
         scoreName,
         strokes: state.strokes,
         relativeToPar,
+        shotInfo: { ...state.shotInfo },
         scoreCard: state.scoreCard,
         fullState: getFullState()
     });
+}
+
+function setupAimingFromBall() {
+    state.direction = 0;
+
+    if (state.directionArrow) {
+        state.directionArrow.position.set(state.ball.position.x, 0.3, state.ball.position.z);
+        state.directionArrow.visible = true;
+    }
+
+    autoSelectClub();
+    updateDirectionArrow();
+    updateShotSetupCamera();
+    setGameState(GameState.AIMING);
 }
 
 /**
  * Prepare for the next shot
  */
 function prepareForNextShot() {
-    // Reset direction
-    state.direction = 0;
-    
-    // Make direction arrow visible again
-    if (state.directionArrow) {
-        // Position the arrow at the ball
-        state.directionArrow.position.set(state.ball.position.x, 0.3, state.ball.position.z);
-        state.directionArrow.visible = true;
-    }
-    
-    // Auto-select appropriate club based on distance
-    autoSelectClub();
-    
-    // Update direction arrow
-    updateDirectionArrow();
-    
-    // Set camera to aiming mode
-    Camera.setAimingMode(state.ball.position, calculateAngleToHole());
-    
-    // Set game state back to aiming
-    setGameState(GameState.AIMING);
-    
-    // Emit shot complete event
+    setupAimingFromBall();
+
     const distanceToHole = Math.sqrt(
         Math.pow(state.ball.position.x - state.holeData.position.x, 2) +
         Math.pow(state.ball.position.z - state.holeData.position.z, 2)
@@ -475,6 +488,26 @@ function prepareForNextShot() {
         strokes: state.strokes,
         fullState: getFullState()
     });
+}
+
+function getBallSnapshot() {
+    return {
+        x: state.ball.position.x,
+        y: state.ball.position.y,
+        z: state.ball.position.z,
+        strokes: state.strokes,
+        holed: state.gameState === GameState.COMPLETE
+    };
+}
+
+function loadBallSnapshot({ x, y, z, strokes }) {
+    if (state.gameState === GameState.IN_FLIGHT) return false;
+
+    state.ball.position.set(x, y, z);
+    state.ball.rotation.set(0, 0, 0);
+    state.strokes = strokes;
+    setupAimingFromBall();
+    return true;
 }
 
 /**
@@ -509,7 +542,7 @@ function nextHole() {
     state.direction = 0;
     state.power = 0;
     state.accuracy = 0;
-    state.shotInfo = { power: 0, accuracy: 0, direction: 0, club: '' };
+    state.shotInfo = { power: 0, accuracy: 0, direction: 0, club: '', controlMode: CONTROL_MODES.CLASSIC };
     state.currentClub = 'driver'; // Default to driver for tee shot
     
     // Set camera to overview mode
@@ -541,6 +574,10 @@ function autoSelectClub() {
  */
 function setCurrentClub(clubName) {
     state.currentClub = clubName;
+
+    if (state.gameState === GameState.AIMING) {
+        updateShotSetupCamera();
+    }
     
     eventBus.emit('clubSelected', { clubName: state.currentClub, fullState: getFullState() });
     
@@ -594,7 +631,7 @@ function resetGame() {
     state.direction = 0;
     state.power = 0;
     state.accuracy = 0;
-    state.shotInfo = { power: 0, accuracy: 0, direction: 0, club: '' };
+    state.shotInfo = { power: 0, accuracy: 0, direction: 0, club: '', controlMode: CONTROL_MODES.CLASSIC };
     state.currentClub = 'driver';
     
     // Set camera to overview mode
@@ -602,6 +639,38 @@ function resetGame() {
     
     // Reset game state
     setGameState(GameState.AIMING);
+}
+
+function takeShotFromIntent(intentData) {
+    if (state.gameState !== GameState.AIMING) return false;
+
+    const intent = normalizeShotIntent(intentData);
+    if (intent.source !== state.currentControlMode) return false;
+
+    state.strokes++;
+    takeShot(normalizeShotIntent({
+        ...intent,
+        directionOffset: state.direction + intent.directionOffset
+    }));
+    return true;
+}
+
+function setControlMode(controlMode) {
+    if (state.gameState !== GameState.AIMING) return false;
+    if (!Object.values(CONTROL_MODES).includes(controlMode)) return false;
+
+    state.currentControlMode = controlMode;
+    eventBus.emit('controlModeChanged', { controlMode, fullState: getFullState() });
+    updateInfo();
+    return true;
+}
+
+function getControlMode() {
+    return state.currentControlMode;
+}
+
+function getShotInfo() {
+    return { ...state.shotInfo };
 }
 
 // Export the module functions
@@ -623,5 +692,11 @@ export {
     getCurrentClub,
     // registerCallbacks removed
     getScoreCard,
-    resetGame
+    resetGame,
+    takeShotFromIntent,
+    setControlMode,
+    getControlMode,
+    getShotInfo,
+    getBallSnapshot,
+    loadBallSnapshot
 };

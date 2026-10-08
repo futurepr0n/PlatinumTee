@@ -1,8 +1,9 @@
 // controls.js - Handles player input and control logic
 
-import { GameState } from './gameState.js'; // GameState is used in simulateButtonPress (GameButtons)
+import * as GameState from './gameState.js';
 import { eventBus } from './events.js'; // Import eventBus
-import { powerMeter, accuracyMeter, clubSelection, gameButtons } from '../ui.js';
+import { getNextControlMode } from './shotControls/controlModes.js';
+import { clubSelection, gameButtons } from '../ui.js';
 
 // Controls constants
 const DIRECTION_ADJUSTMENT_DEGREES = 5;
@@ -43,7 +44,12 @@ function setupKeyboardControls() {
             case ' ':
             case 'Enter':
                 // Space or Enter key simulates the appropriate button click
-                eventBus.emit('simulateButtonPressRequested');
+                eventBus.emit('simulateSpecificButtonPressRequested');
+                break;
+
+            case 'm':
+            case 'M':
+                eventBus.emit('controlModeChangeRequested', getNextControlMode(GameState.getControlMode()));
                 break;
                 
             default:

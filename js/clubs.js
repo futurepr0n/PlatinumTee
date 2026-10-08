@@ -64,7 +64,7 @@ const CLUBS = {
     putter: { 
         name: 'putter',
         displayName: 'Putter',
-        maxDistance: 20, 
+        maxDistance: 45, 
         height: 0.1,
         accuracy: 0.95
     }
@@ -96,7 +96,7 @@ function recommendClub(distanceToHole) {
     if (distanceYards > 140) return 'iron7';
     if (distanceYards > 120) return 'iron9';
     if (distanceYards > 90) return 'pitchingWedge';
-    if (distanceYards > 20) return 'sandWedge';
+    if (distanceYards > 45) return 'sandWedge';
     return 'putter';
 }
 
@@ -119,8 +119,8 @@ function calculateRecommendedPower(clubName, distanceToHole) {
     
     // Apply slight adjustments for different club types to match physics implementation
     if (club.name === 'putter') {
-        // For putters, we need more power since the physics implementation is heavily dampened
-        powerNeeded = Math.min(1, powerNeeded * 1.8);
+        // Putter physics now rolls longer, so recommendation can stay closer to actual distance.
+        powerNeeded = Math.min(1, powerNeeded * 1.05);
     } else if (club.name === 'sandWedge' || club.name === 'pitchingWedge') {
         // For short irons/wedges, we need slightly more power
         powerNeeded = Math.min(1, powerNeeded * 1.3);

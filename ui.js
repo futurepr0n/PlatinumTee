@@ -2,6 +2,7 @@
 
 import { GameState } from './js/gameState.js';
 import { YARDS_TO_UNITS } from './js/physics.js';
+import { CONTROL_MODES } from './js/shotControls/controlModes.js';
 
 import { PowerMeter } from './js/ui/PowerMeter.js';
 import { AccuracyMeter } from './js/ui/AccuracyMeter.js';
@@ -12,6 +13,8 @@ import { ClubSelection } from './js/ui/ClubSelection.js';
 import { GameButtons } from './js/ui/GameButtons.js';
 import { DirectionPointer } from './js/ui/DirectionPointer.js';
 import { TemporaryMessage } from './js/ui/TemporaryMessage.js';
+import { ControlModeSwitcher } from './js/ui/ControlModeSwitcher.js';
+import { TrackballControl } from './js/ui/TrackballControl.js';
 
 
 
@@ -30,6 +33,8 @@ let clubSelection;
 let gameButtons;
 let directionPointer;
 let temporaryMessage;
+let controlModeSwitcher;
+let trackballControl;
 
 /**
  * Initialize the UI module
@@ -53,8 +58,11 @@ function initUI() {
 
     gameButtons = new GameButtons('swing-btn', 'power-btn', 'accuracy-btn', 'next-hole-btn', 'results');
 
+    controlModeSwitcher = new ControlModeSwitcher('control-mode-switcher');
+
     directionPointer = new DirectionPointer('direction-indicator', 'target-flag');
     temporaryMessage = new TemporaryMessage(); // No init() needed for this component
+    trackballControl = new TrackballControl('trackball-control', 'trackball-canvas', 'trackball-power-preview');
 }
 
 
@@ -100,6 +108,7 @@ function updateUI(info) {
     
     // Update club selection
     clubSelection.updateSelection(info.currentClub);
+    controlModeSwitcher.updateSelection(info.currentControlMode);
 }
 
 /**
@@ -109,6 +118,15 @@ function updateUI(info) {
 function showAimingUI(info) {
     // Hide/show relevant buttons
     gameButtons.showSwingButton();
+    controlModeSwitcher.show();
+    if (info.currentControlMode === CONTROL_MODES.TRACKBALL) {
+        gameButtons.hideAllButtons();
+    }
+    if (info.currentControlMode === CONTROL_MODES.TRACKBALL) {
+        trackballControl.show();
+    } else {
+        trackballControl.hide();
+    }
     
     // Hide meters
     powerMeter.hide();
@@ -133,6 +151,8 @@ function showAimingUI(info) {
 function showPowerUI() {
     // Show/hide relevant buttons
     gameButtons.showPowerButton();
+    controlModeSwitcher.hide();
+    trackballControl.hide();
     
     // Show power meter
     powerMeter.show();
@@ -156,6 +176,8 @@ function showTemporaryMessage(message, duration) {
 function showAccuracyUI() {
     // Show/hide relevant buttons
     gameButtons.showAccuracyButton();
+    controlModeSwitcher.hide();
+    trackballControl.hide();
     
     // Show accuracy meter
     powerMeter.hide(); // Hide power meter
@@ -172,6 +194,8 @@ function showAccuracyUI() {
 function showInFlightUI(info) {
     // Hide all interactive elements
     gameButtons.hideAllButtons();
+    controlModeSwitcher.hide();
+    trackballControl.hide();
     powerMeter.hide();
     accuracyMeter.hide();
     directionPointer.hide();
@@ -217,5 +241,7 @@ export {
     scorecard, // Export the scorecard instance
     clubSelection, // Export the clubSelection instance
     gameButtons, // Export the gameButtons instance
-    directionPointer // Export the directionPointer instance
+    directionPointer, // Export the directionPointer instance
+    controlModeSwitcher, // Export the controlModeSwitcher instance
+    trackballControl // Export the trackballControl instance
 };

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Golf Game with Realistic Distances</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=trackball-heft">
 </head>
 <body>
     <div id="container"></div>
@@ -24,6 +24,10 @@
     <div id="target-flag">🚩</div>
     <div id="shot-power-info">Shot Power: 0%</div>
     <div id="controls">
+        <div id="control-mode-switcher" aria-label="Shot control mode">
+            <button class="control-mode-btn active" type="button" data-control-mode="classic-meter">Classic</button>
+            <button class="control-mode-btn" type="button" data-control-mode="trackball">Trackball</button>
+        </div>
         <div id="power-meter" class="meter">
             <div id="meter-label">POWER - HIGHER = FARTHER</div>
         </div>
@@ -37,6 +41,21 @@
             </div>
             <div id="marker"></div>
             <div id="meter-label">ACCURACY - CLICK WHEN CENTERED!</div>
+        </div>
+        <div id="trackball-control">
+            <div id="trackball-stage">
+                <div class="trackball-step trackball-step-back">
+                    <span>1</span>
+                    <b>Pull back</b>
+                </div>
+                <div id="trackball-canvas"></div>
+                <div class="trackball-step trackball-step-forward">
+                    <span>2</span>
+                    <b>Drive forward</b>
+                </div>
+            </div>
+            <div id="trackball-guide">Pull back, then drive forward through the ball</div>
+            <div id="trackball-power-preview">Power 0%</div>
         </div>
         <button id="swing-btn">SWING</button>
         <button id="power-btn">SET POWER</button>
@@ -83,6 +102,6 @@
     </script>
     
     <!-- Load modules using ES modules -->
-    <script type="module" src="js/main.js?v=20260510-2"></script>
+    <script type="module" src="js/main.js?v=putting-phase-1"></script>
 </body>
 </html>
