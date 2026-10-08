@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PlatinumTee Controller</title>
+    <link rel="stylesheet" href="controller.css">
+</head>
+<body>
+    <main id="controller">
+        <form id="join-form" hidden>
+            <h1>PlatinumTee</h1>
+            <label>Room code <input id="room-input" maxlength="4" autocomplete="off" autocapitalize="characters" required></label>
+            <label>Your name <input id="name-input" maxlength="16" autocomplete="nickname" required></label>
+            <button type="submit">JOIN</button>
+            <p id="join-error" role="alert"></p>
+        </form>
+        <section id="play" hidden>
+            <p id="turn-status" aria-live="polite"></p>
+            <div id="swipe-pad">Pull back, then flick forward</div>
+            <ol id="standings"></ol>
+        </section>
+        <p id="connection-status"></p>
+    </main>
+    <script type="module" src="js/controller/controller.js"></script>
+</body>
+</html>

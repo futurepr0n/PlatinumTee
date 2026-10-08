@@ -1,0 +1,61 @@
+:root {
+    --bg: #0e2a1c;
+    --fg: #ffffff;
+    --accent: #f59e0b;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, sans-serif;
+}
+
+#controller {
+    padding: 16px;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+#join-form label {
+    display: block;
+    margin-bottom: 12px;
+}
+
+#join-form input,
+#join-form button {
+    width: 100%;
+    padding: 12px;
+    font-size: 1.2rem;
+}
+
+#swipe-pad {
+    height: 55vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed rgba(255, 255, 255, 0.4);
+    border-radius: 16px;
+    touch-action: none;
+    user-select: none;
+    opacity: 0.4;
+}
+
+#swipe-pad.active {
+    opacity: 1;
+    border-color: var(--accent);
+}
+
+#turn-status {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+#join-error {
+    color: #fca5a5;
+}
