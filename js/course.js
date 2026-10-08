@@ -4,6 +4,7 @@ import * as THREE from 'three';
 // Conversion constants (from physics.js)
 import { YARDS_TO_UNITS } from './physics.js';
 import logger from './utils/logger.js'; // Import logger
+import { disposeObject } from './utils/dispose.js';
 
 // Course elements collections
 let ground = null;
@@ -191,10 +192,7 @@ function createHole(holePosition, holePar, holeDistance) {
     }
     
     // Clear any existing hole elements
-    if (hole) scene.remove(hole);
-    if (flagpole) scene.remove(flagpole);
-    if (flag) scene.remove(flag);
-    if (green) scene.remove(green);
+    [hole, flagpole, flag, green].forEach(object => disposeObject(scene, object));
     
     // Create the actual hole (black cylinder)
     const holeGeometry = new THREE.CylinderGeometry(HOLE_RADIUS_VISUAL, HOLE_RADIUS_VISUAL, HOLE_HEIGHT_VISUAL, 32); // Smaller hole for smaller ball
@@ -296,6 +294,22 @@ function addDecorativeElements(holePosition) {
     }
 }
 
+let sharedDecor = null;
+
+function getSharedDecor() {
+    if (!sharedDecor) {
+        sharedDecor = {
+            trunkGeometry: new THREE.CylinderGeometry(TRUNK_RADIUS, TRUNK_RADIUS, TRUNK_HEIGHT, TRUNK_SEGMENTS),
+            trunkMaterial: new THREE.MeshStandardMaterial({ color: TRUNK_COLOR }),
+            foliageGeometry: new THREE.ConeGeometry(FOLIAGE_RADIUS, FOLIAGE_HEIGHT, FOLIAGE_SEGMENTS),
+            foliageMaterial: new THREE.MeshStandardMaterial({ color: FOLIAGE_COLOR }),
+            bunkerGeometry: new THREE.CircleGeometry(1, 32),
+            bunkerMaterial: new THREE.MeshStandardMaterial({ color: BUNKER_COLOR })
+        };
+    }
+    return sharedDecor;
+}
+
 /**
  * Creates a tree at the specified position
  * @param {number} x - X position
@@ -306,17 +320,14 @@ function createTree(x, z) {
     const terrainHeight = getTerrainHeightAt(x, z);
     
     // Create trunk
-    const trunkGeometry = new THREE.CylinderGeometry(TRUNK_RADIUS, TRUNK_RADIUS, TRUNK_HEIGHT, TRUNK_SEGMENTS);
-    const trunkMaterial = new THREE.MeshStandardMaterial({ color: TRUNK_COLOR });
-    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    const decor = getSharedDecor();
+    const trunk = new THREE.Mesh(decor.trunkGeometry, decor.trunkMaterial);
     trunk.position.set(x, terrainHeight + TRUNK_VERTICAL_OFFSET, z);
     trunk.castShadow = true;
     scene.add(trunk);
     
     // Create foliage
-    const foliageGeometry = new THREE.ConeGeometry(FOLIAGE_RADIUS, FOLIAGE_HEIGHT, FOLIAGE_SEGMENTS);
-    const foliageMaterial = new THREE.MeshStandardMaterial({ color: FOLIAGE_COLOR });
-    const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+    const foliage = new THREE.Mesh(decor.foliageGeometry, decor.foliageMaterial);
     foliage.position.set(x, terrainHeight + FOLIAGE_VERTICAL_OFFSET, z);
     foliage.castShadow = true;
     scene.add(foliage);
@@ -334,9 +345,9 @@ function createBunker(x, z, size) {
     // Get terrain height at bunker position
     const terrainHeight = getTerrainHeightAt(x, z);
     
-    const bunkerGeometry = new THREE.CircleGeometry(size, 32);
-    const bunkerMaterial = new THREE.MeshStandardMaterial({ color: BUNKER_COLOR });
-    const bunker = new THREE.Mesh(bunkerGeometry, bunkerMaterial);
+    const decor = getSharedDecor();
+    const bunker = new THREE.Mesh(decor.bunkerGeometry, decor.bunkerMaterial);
+    bunker.scale.set(size, size, 1);
     bunker.rotation.x = -Math.PI / 2;
     bunker.position.set(x, terrainHeight + BUNKER_VERTICAL_OFFSET, z);
     scene.add(bunker);
@@ -370,13 +381,7 @@ function clearCourse() {
     clearDecorativeElements();
     
     // Clear hole elements
-    if (hole) scene.remove(hole);
-    if (flagpole) scene.remove(flagpole);
-    if (flag) scene.remove(flag);
-    if (green) scene.remove(green);
-    
-    // Clear ground
-    if (ground) scene.remove(ground);
+    [hole, flagpole, flag, green, ground].forEach(object => disposeObject(scene, object));
     
     hole = null;
     flagpole = null;
