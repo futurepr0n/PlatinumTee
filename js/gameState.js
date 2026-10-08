@@ -316,8 +316,7 @@ function takeShot(intentData) {
 
     const accuracyEffect = (intent.accuracy - 0.5) * 2;
     const angleToHole = calculateAngleToHole();
-    const curveEffect = intent.curve * 20;
-    const finalDirection = angleToHole + intent.directionOffset + (accuracyEffect * 45) + curveEffect;
+    const finalDirection = angleToHole + intent.directionOffset + (accuracyEffect * 45);
     
     // Store shot info
     state.shotInfo = {

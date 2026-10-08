@@ -70,3 +70,18 @@ test('trackball intent launch combines player aim with gesture direction offset'
 
     assert.equal(GameState.getShotInfo().direction, '22.00');
 });
+
+test('gesture curve does not add a second aim offset on top of directionOffset', () => {
+    setupGame();
+
+    assert.equal(GameState.setControlMode(CONTROL_MODES.TRACKBALL), true);
+    assert.equal(GameState.takeShotFromIntent({
+        source: CONTROL_MODES.TRACKBALL,
+        power: 0.5,
+        accuracy: 0.5,
+        directionOffset: 0,
+        curve: -1
+    }), true);
+
+    assert.equal(GameState.getShotInfo().direction, '0.00');
+});
