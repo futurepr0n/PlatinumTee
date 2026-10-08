@@ -105,6 +105,11 @@ function setHoleData(data) {
     // Reset stroke count for new hole
     state.strokes = 0;
     
+    if (state.gameState === GameState.AIMING) {
+        updateDirectionArrow();
+        updateShotSetupCamera();
+    }
+
     const fullState = getFullState();
     eventBus.emit('holeDataUpdated', { holeData: fullState.holeData, fullState });
     

@@ -10,7 +10,7 @@ body {
 }
 #info {
     position: absolute;
-    top: 10px;
+    top: 52px;
     left: 0;
     right: 0;
     text-align: center;
@@ -170,28 +170,6 @@ button {
 #score-card th, #score-card td {
     border: 1px solid #666;
     padding: 5px;
-}
-#direction-indicator {
-    position: absolute;
-    bottom: 50%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100px;
-    height: 2px;
-    background-color: rgba(255, 255, 255, 0.6);
-    transform-origin: center left;
-    display: none;
-}
-#target-flag {
-    position: absolute;
-    bottom: 60%;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 24px;
-    color: white;
-    text-shadow: 0 0 5px black;
-    pointer-events: none;
-    display: none;
 }
 #shot-power-info {
     position: absolute;

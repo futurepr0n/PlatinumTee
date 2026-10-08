@@ -101,7 +101,6 @@ export class GameManager {
         });
 
         eventBus.on('directionUpdated', (data) => {
-            UI.directionPointer.updateDirectionIndicator(data.direction, data.fullState.distanceToHole);
             UI.gameInfo.updateStatusText(`Direction: ${data.direction}°`);
         });
 
