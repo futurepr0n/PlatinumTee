@@ -78,6 +78,11 @@ export class GameManager {
             UI.updateUI(data.fullState);
         });
 
+        eventBus.on('ballMoved', ({ distanceToHole }) => {
+            const distanceYards = Math.round(distanceToHole / Physics.YARDS_TO_UNITS);
+            UI.gameInfo.updateStatusText(`Distance to hole: ${distanceYards} yards`);
+        });
+
         eventBus.on('outOfBounds', (data) => {
             UI.showTemporaryMessage(`Out of bounds! Penalty stroke — now playing ${data.strokes + 1}.`);
         });
@@ -189,6 +194,7 @@ export class GameManager {
     }
 
     handleStateChange(oldState, newState) {
+        if (oldState === newState) return;
         logger.info(`Game state changed from ${oldState} to ${newState}`);
     }
 
