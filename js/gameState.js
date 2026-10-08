@@ -370,7 +370,7 @@ function takeShot(intentData) {
     logger.debug(`Shot: club=${state.currentClub}, power=${state.power.toFixed(2)}, direction=${finalDirection.toFixed(1)}°`);
     
     // Update camera to follow the ball
-    Camera.setFollowMode(state.ball.position);
+    Camera.setFollowMode(state.ball.position, finalDirection);
     
     // Update UI information
     updateInfo();
