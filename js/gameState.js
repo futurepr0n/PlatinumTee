@@ -9,6 +9,8 @@ import { eventBus } from './events.js'; // Import eventBus
 import logger from './utils/logger.js'; // Import logger
 import { createClassicShotIntent, normalizeShotIntent } from './shotControls/ShotIntent.js';
 import { CONTROL_MODES } from './shotControls/controlModes.js';
+import { rollHoleWind, gustWind } from './wind.js';
+import { describeShotShape, backspinForClub } from './shotShape.js';
 
 // Game state enum
 const GameState = {
@@ -46,6 +48,7 @@ let state = {
         direction: 0, // in degrees (0 = North, 90 = East, etc.)
         speed: 0      // in mph
     },
+    windInitialized: false,
     ballPhysics: null,
     ball: null, // Reference to Three.js ball object
     scene: null, // Reference to Three.js scene object
@@ -121,9 +124,10 @@ function setHoleData(data) {
  * Generate random wind direction and speed
  */
 function generateWind() {
-    state.windData.direction = Math.floor(Math.random() * 360);
-    state.windData.speed = Math.floor(Math.random() * 15); // 0-15 mph
-    
+    const previous = state.windInitialized ? { ...state.windData } : null;
+    state.windData = rollHoleWind(previous);
+    state.windInitialized = true;
+
     eventBus.emit('windDataUpdated', { windData: state.windData, fullState: getFullState() });
     
     // Update UI information (this will be handled by event listeners now)
@@ -317,14 +321,17 @@ function takeShot(intentData) {
     const accuracyEffect = (intent.accuracy - 0.5) * 2;
     const angleToHole = calculateAngleToHole();
     const finalDirection = angleToHole + intent.directionOffset + (accuracyEffect * 45);
-    
+    const shotWind = gustWind(state.windData);
+
     // Store shot info
     state.shotInfo = {
         power: state.power.toFixed(2),
         accuracy: state.accuracy.toFixed(2),
         direction: finalDirection.toFixed(2),
         club: state.currentClub,
-        controlMode: intent.source
+        controlMode: intent.source,
+        wind: shotWind,
+        shape: describeShotShape(intent.curve)
     };
     
     state.shotOrigin = {
@@ -354,11 +361,9 @@ function takeShot(intentData) {
         finalDirection,
         state.power,
         club,
-        { 
-            direction: state.windData.direction, 
-            speed: state.windData.speed 
-        },
-        state.holeData.position // Pass hole position for better collision detection
+        shotWind,
+        state.holeData.position, // Pass hole position for better collision detection
+        { side: intent.curve, back: backspinForClub(club, intent.spin) }
     );
     
     // DEBUG: Log shot parameters

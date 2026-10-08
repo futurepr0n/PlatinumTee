@@ -96,8 +96,8 @@ test('interpretTrackballGesture maps side exit angle into curve and direction of
     ]);
 
     assert.equal(result.valid, true);
-    assert.ok(result.intent.directionOffset > 10);
-    assert.ok(result.intent.curve > 0.4);
+    assert.ok(result.intent.directionOffset > 3);
+    assert.ok(result.intent.curve > 0.25);
     assert.equal(result.intent.accuracy, 0.5);
     assert.ok(result.metrics.strikeQuality < 0.9);
 });
@@ -130,4 +130,23 @@ test('side steering depends on swipe angle, not screen size', () => {
     ]);
 
     assert.ok(Math.abs(small.intent.directionOffset - large.intent.directionOffset) < 0.5);
+});
+
+test('curve response is gentle near straight and strong at the extremes', () => {
+    function exit(degrees) {
+        const radians = degrees * Math.PI / 180;
+        return interpretTrackballGesture([
+            { x: 150, y: 260, t: 0 },
+            { x: 150, y: 320, t: 70 },
+            { x: 150 + Math.sin(radians) * 100, y: 320 - Math.cos(radians) * 100, t: 120 },
+            { x: 150 + Math.sin(radians) * 220, y: 320 - Math.cos(radians) * 220, t: 180 }
+        ]).intent;
+    }
+
+    const slight = exit(12);
+    const strong = exit(30);
+    assert.ok(slight.curve > 0 && slight.curve < 0.15, `slight ${slight.curve}`);
+    assert.ok(strong.curve > 0.9, `strong ${strong.curve}`);
+    assert.ok(Math.abs(strong.directionOffset) <= 10);
+    assert.ok(exit(-30).curve < -0.9);
 });

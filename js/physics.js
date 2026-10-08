@@ -18,10 +18,14 @@ const DEFAULT_VERTICAL_POWER_OFFSET = 0.12;
 
 // New Constants for Magic Numbers
 const BALL_RADIUS = 0.1; // Derived from ballGeometry in main.js
-const WIND_EFFECT_MULTIPLIER = 0.0002;
+const WIND_EFFECT_MULTIPLIER = 0.000068;
 const AIRBORNE_EPSILON = 0.02;
 const WIND_MIN_HEIGHT = 0.5;
 const SIDEWAYS_GROUND_DAMPING = 0.3;
+const SIDESPIN_ACCEL = 0.0035;
+const SIDESPIN_DECAY = 0.995;
+const LANDING_KICK = 0.15;
+const BACKSPIN_CHECK = 0.5;
 const PUTTER_ROTATION_SPEED = 0.2;
 const DEFAULT_ROTATION_SPEED = 0.5;
 const HOLE_RADIUS = 0.1875;
@@ -36,6 +40,11 @@ const CLUB_HEIGHT_BOUNCE_MULTIPLIER = 0.3;
 const POWER_BOUNCE_MULTIPLIER = 0.1;
 
 const PUTTER_GROUND_FRICTION = 0.94;
+const SURFACES = Object.freeze({
+    fairway: { friction: GROUND_FRICTION, bounce: 1 },
+    green: { friction: 0.9, bounce: 0.6 },
+    bunker: { friction: 0.45, bounce: 0.25 }
+});
 
 const PUTTER_SPEED_THRESHOLD = 0.002;
 const DEFAULT_SPEED_THRESHOLD = 0.02;
@@ -50,7 +59,7 @@ let terrainHeightMap = null;
 
 // Ball physics state
 class BallPhysics {
-    constructor(initialPosition, direction, power, club, wind = { direction: 0, speed: 0 }, holePosition = null) {
+    constructor(initialPosition, direction, power, club, wind = { direction: 0, speed: 0 }, holePosition = null, spin = { side: 0, back: 0 }) {
         this.initialPosition = { ...initialPosition };
         this.direction = direction;
         this.power = power;
@@ -66,6 +75,12 @@ class BallPhysics {
         // Track bounce count to determine when to stop the ball
         this.bounceCount = 0;
         this.hasLanded = false;
+
+        const usesSpin = club.name !== 'putter';
+        this.sidespin = usesSpin ? Math.max(-1, Math.min(1, spin.side ?? 0)) : 0;
+        this.backspin = usesSpin ? Math.max(0, Math.min(1, spin.back ?? 0)) : 0;
+        this.rollHeading = null;
+        this.windVelocity = { x: 0, z: 0 };
     }
 
     calculateInitialVelocity() {
@@ -169,14 +184,32 @@ class BallPhysics {
         this.velocity.x *= AIR_RESISTANCE;
         this.velocity.y *= AIR_RESISTANCE;
         this.velocity.z *= AIR_RESISTANCE;
+        this.windVelocity.x *= AIR_RESISTANCE;
+        this.windVelocity.z *= AIR_RESISTANCE;
 
         const groundHeight = this.getTerrainHeightAt(ball.position.x, ball.position.z, terrain);
         const isInFlight = ball.position.y > groundHeight + BALL_RADIUS + Math.max(AIRBORNE_EPSILON, WIND_MIN_HEIGHT);
         if (isInFlight && !this.hasLanded && this.club.name !== 'putter') {
             const windRadians = this.wind.direction * (Math.PI / 180);
-            const windEffect = this.wind.speed * WIND_EFFECT_MULTIPLIER;
-            this.velocity.x += Math.sin(windRadians) * windEffect;
-            this.velocity.z += -Math.cos(windRadians) * windEffect;
+            const windEffect = this.wind.speed * WIND_EFFECT_MULTIPLIER * (0.8 + (1 - this.club.maxDistance / 400) * 0.1);
+            const windDX = Math.sin(windRadians) * windEffect;
+            const windDZ = -Math.cos(windRadians) * windEffect;
+            this.velocity.x += windDX;
+            this.velocity.z += windDZ;
+            this.windVelocity.x += windDX;
+            this.windVelocity.z += windDZ;
+        }
+
+        if (isInFlight && !this.hasLanded && this.sidespin !== 0) {
+            const horizontalSpeed = Math.hypot(this.velocity.x, this.velocity.z);
+            if (horizontalSpeed > 0) {
+                const rightX = -this.velocity.z / horizontalSpeed;
+                const rightZ = this.velocity.x / horizontalSpeed;
+                const bend = SIDESPIN_ACCEL * this.sidespin * horizontalSpeed;
+                this.velocity.x += rightX * bend;
+                this.velocity.z += rightZ * bend;
+            }
+            this.sidespin *= SIDESPIN_DECAY;
         }
 
         // Update ball position
@@ -230,12 +263,14 @@ class BallPhysics {
             
             // Bounce with friction - more realistic bounce physics
             // Reduced bounce for putting or when using less lofted clubs
+            const surface = SURFACES[terrain?.getSurfaceAt?.(ball.position.x, ball.position.z)] ?? SURFACES.fairway;
             let bounceFactor;
             if (this.club.name === 'putter') {
                 bounceFactor = PUTTER_BOUNCE_FACTOR; // Even less bounce for putting
             } else {
                 // More lofted clubs and higher power give more bounce
                 bounceFactor = DEFAULT_BOUNCE_BASE + (this.club.height * CLUB_HEIGHT_BOUNCE_MULTIPLIER) + (this.power * POWER_BOUNCE_MULTIPLIER);
+                bounceFactor *= surface.bounce;
             }
             
             // Bounce effect
@@ -246,12 +281,15 @@ class BallPhysics {
             if (this.club.name === 'putter') {
                 frictionFactor = PUTTER_GROUND_FRICTION; // Less friction for putts to roll longer
             } else {
-                frictionFactor = GROUND_FRICTION;
+                frictionFactor = surface.friction;
             }
             
             this.velocity.x *= frictionFactor;
             this.velocity.z *= frictionFactor;
-            this.hasLanded = true;
+            if (!this.hasLanded) {
+                this.hasLanded = true;
+                this.applyLandingSpin();
+            }
             this.dampSidewaysVelocity();
             
             // Track bounces to determine when to stop
@@ -277,10 +315,41 @@ class BallPhysics {
         return true; // Ball is still moving
     }
 
+    applyLandingSpin() {
+        const horizontalSpeed = Math.hypot(this.velocity.x, this.velocity.z);
+        if (horizontalSpeed === 0) return;
+
+        let headingX = this.velocity.x - this.windVelocity.x;
+        let headingZ = this.velocity.z - this.windVelocity.z;
+        let headingLength = Math.hypot(headingX, headingZ);
+        if (headingLength < 1e-6) {
+            const dirRadians = this.direction * (Math.PI / 180);
+            headingX = Math.sin(dirRadians);
+            headingZ = -Math.cos(dirRadians);
+            headingLength = 1;
+        }
+        this.rollHeading = { x: headingX / headingLength, z: headingZ / headingLength };
+        const rightX = -this.rollHeading.z;
+        const rightZ = this.rollHeading.x;
+        const kick = LANDING_KICK * this.sidespin * horizontalSpeed;
+        const check = 1 - BACKSPIN_CHECK * this.backspin;
+
+        this.velocity.x = this.velocity.x * check + rightX * kick;
+        this.velocity.z = this.velocity.z * check + rightZ * kick;
+        this.sidespin = 0;
+    }
+
     dampSidewaysVelocity() {
-        const dirRadians = this.direction * (Math.PI / 180);
-        const lineX = Math.sin(dirRadians);
-        const lineZ = -Math.cos(dirRadians);
+        let lineX;
+        let lineZ;
+        if (this.rollHeading) {
+            lineX = this.rollHeading.x;
+            lineZ = this.rollHeading.z;
+        } else {
+            const dirRadians = this.direction * (Math.PI / 180);
+            lineX = Math.sin(dirRadians);
+            lineZ = -Math.cos(dirRadians);
+        }
         const along = this.velocity.x * lineX + this.velocity.z * lineZ;
         const sidewaysX = this.velocity.x - along * lineX;
         const sidewaysZ = this.velocity.z - along * lineZ;
