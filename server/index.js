@@ -72,7 +72,10 @@ export function createServer({ port = 8000, registry = new RoomRegistry() } = {}
     const handlers = {
         [MSG.HOST_CREATE]: (connId) => {
             const code = registry.createRoom(connId);
-            if (code) send(connId, MSG.ROOM_CREATED, { code });
+            if (code) {
+                const { port: listeningPort } = server.address() ?? { port };
+                send(connId, MSG.ROOM_CREATED, { code, joinHosts: lanAddresses().map(address => `${address}:${listeningPort}`) });
+            }
             else send(connId, MSG.ERROR, { code: 'ALREADY_IN_ROOM' });
         },
         [MSG.PLAYER_JOIN]: (connId, payload) => welcome(connId, registry.joinRoom(payload.code, connId, payload.name)),
@@ -153,6 +156,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const app = createServer({ port: Number(process.env.PORT) || 8000 });
     app.listen().then((port) => {
         console.log(`PlatinumTee host screen: http://localhost:${port}/index.html?host`);
+        for (const address of lanAddresses()) {
+            console.log(`Host screen (LAN): http://${address}:${port}/index.html?host`);
+        }
         for (const address of lanAddresses()) {
             console.log(`Phones on this network: http://${address}:${port}/controller.html`);
         }

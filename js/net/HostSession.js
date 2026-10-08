@@ -13,6 +13,7 @@ export class HostSession {
         this.onChange = onChange;
         this.turns = turns;
         this.code = null;
+        this.joinHosts = [];
         this.phase = 'lobby';
         this.holeInfo = null;
 
@@ -29,7 +30,10 @@ export class HostSession {
         const message = decode(raw);
         if (!message) return;
 
-        if (message.type === MSG.ROOM_CREATED) this.code = message.payload.code;
+        if (message.type === MSG.ROOM_CREATED) {
+            this.code = message.payload.code;
+            this.joinHosts = Array.isArray(message.payload.joinHosts) ? message.payload.joinHosts : [];
+        }
         if (message.type === MSG.ROOM_PLAYERS) this.handleRoster(message.payload.players);
         if (message.type === MSG.PLAYER_SHOT) this.handleShot(message.payload.playerId, message.payload.intent);
         this.onChange(this.view());
@@ -91,7 +95,14 @@ export class HostSession {
             holed: snapshot.holed
         });
         this.phase = 'settling';
-        queueMicrotask(() => this.beginTurn());
+        queueMicrotask(() => {
+            try {
+                this.beginTurn();
+            } catch (error) {
+                console.error('Failed to begin next turn', error);
+                this.setPhase('waiting');
+            }
+        });
     }
 
     finishHole() {
@@ -131,6 +142,7 @@ export class HostSession {
     view() {
         return {
             code: this.code,
+            joinHosts: this.joinHosts,
             phase: this.phase,
             players: this.turns.standings(),
             currentId: this.turns.currentId

@@ -140,3 +140,43 @@ test('startRound needs at least one connected player and only works from the lob
     assert.equal(session.startRound(), true);
     assert.equal(session.startRound(), false);
 });
+
+test('removing the current shooter from the roster passes the turn', () => {
+    const { session, roster, lastUpdate } = setup();
+    roster([A, B]);
+    session.startRound();
+    assert.equal(lastUpdate().turnPlayerId, 'a');
+    roster([B]);
+    assert.equal(lastUpdate().phase, 'aiming');
+    assert.equal(lastUpdate().turnPlayerId, 'b');
+});
+
+test('room:created joinHosts are exposed in the view', () => {
+    const { session } = setup();
+    session.handleMessage(encode(MSG.ROOM_CREATED, { code: 'ABCD', joinHosts: ['192.168.1.5:8000'] }));
+    assert.deepEqual(session.view().joinHosts, ['192.168.1.5:8000']);
+    assert.equal(session.view().code, 'ABCD');
+});
+
+test('a throw while beginning the next turn parks the session in waiting', async () => {
+    const { session, game, roster, shot, lastUpdate, finishShot } = setup();
+    roster([A, B]);
+    session.startRound();
+    shot('a', { power: 1 });
+    const original = game.loadBallSnapshot;
+    let thrown = false;
+    game.loadBallSnapshot = function (...args) {
+        if (!thrown) { thrown = true; throw new Error('boom'); }
+        return original.apply(this, args);
+    };
+    const realError = console.error;
+    console.error = () => {};
+    try {
+        await finishShot('shotComplete', { x: 0, z: -30, strokes: 1, holed: false });
+    } finally {
+        console.error = realError;
+    }
+    assert.equal(lastUpdate().phase, 'waiting');
+    roster([A, B]);
+    assert.equal(lastUpdate().phase, 'aiming');
+});

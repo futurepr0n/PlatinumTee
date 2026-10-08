@@ -48,10 +48,10 @@ test('hole completes when every connected player holes out or hits the stroke ca
 
 test('disconnected players are skipped and an empty room never completes the hole', () => {
     const turns = setup();
-    turns.syncRoster([{ id: 'a', name: 'A', connected: false }]);
+    turns.syncRoster([{ id: 'a', name: 'A', connected: false }, { id: 'b', name: 'B', connected: true }]);
     assert.equal(turns.advance().id, 'b');
 
-    turns.syncRoster([{ id: 'b', name: 'B', connected: false }]);
+    turns.syncRoster([{ id: 'a', name: 'A', connected: false }, { id: 'b', name: 'B', connected: false }]);
     assert.equal(turns.advance(), null);
     assert.equal(turns.hasActivePlayers(), false);
     assert.equal(turns.isHoleComplete(), false);
@@ -65,4 +65,14 @@ test('a player who joins mid-hole gets a tee ball and plays next', () => {
     turns.syncRoster([{ id: 'c', name: 'C', connected: true }]);
     assert.deepEqual(turns.get('c').ball, HOLE.tee);
     assert.equal(turns.advance().id, 'c');
+});
+
+test('syncRoster drops removed players and clears the current turn if they held it', () => {
+    const turns = setup(['a', 'b']);
+    turns.advance();
+    assert.equal(turns.currentId, 'a');
+    turns.syncRoster([{ id: 'b', name: 'B', connected: true }]);
+    assert.deepEqual(turns.players.map(p => p.id), ['b']);
+    assert.equal(turns.currentId, null);
+    assert.equal(turns.advance().id, 'b');
 });

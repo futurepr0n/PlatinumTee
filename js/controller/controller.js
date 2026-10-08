@@ -27,15 +27,15 @@ const els = {
     connection: document.getElementById('connection-status')
 };
 
-function safeSessionStorage() {
+function safeStorage() {
     try {
-        return window.sessionStorage;
+        return window.localStorage;
     } catch {
         return null;
     }
 }
 
-const client = new ControllerClient({ storage: safeSessionStorage(), onChange: render });
+const client = new ControllerClient({ storage: safeStorage(), onChange: render });
 els.room.value = new URLSearchParams(window.location.search).get('room') ?? '';
 
 function turnText(state) {

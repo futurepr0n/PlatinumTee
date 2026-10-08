@@ -37,9 +37,12 @@ export class LobbyPanel {
         root.appendChild(this.el);
     }
 
-    render({ code, phase, players, currentId }) {
+    render({ code, phase, players, currentId, joinHosts = [] }) {
         this.code.textContent = code ? `Room ${code}` : 'Creating room…';
-        this.joinUrl.textContent = code ? `${window.location.origin}/controller.html?room=${code}` : '';
+        const { hostname, protocol, origin } = window.location;
+        const isLoopback = ['localhost', '127.0.0.1', '[::1]', '::1'].includes(hostname);
+        const base = isLoopback && joinHosts[0] ? `${protocol}//${joinHosts[0]}` : origin;
+        this.joinUrl.textContent = code ? `${base}/controller.html?room=${code}` : '';
         this.status.textContent = PHASE_TITLES[phase] ?? '';
 
         this.list.replaceChildren(...players.map((player) => {

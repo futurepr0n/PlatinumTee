@@ -82,3 +82,22 @@ test('joinRoom rejects a connection that is already in a room', () => {
     registry.joinRoom(code, 'p1', 'Ann');
     assert.deepEqual(registry.joinRoom(code, 'p1', 'Ann again'), { error: 'ALREADY_IN_ROOM' });
 });
+
+test('a full room evicts a disconnected player for a newcomer and voids the old token', () => {
+    const { registry, code } = setup({ maxPlayers: 2 });
+    const { player: ann } = registry.joinRoom(code, 'p1', 'Ann');
+    registry.joinRoom(code, 'p2', 'Bob');
+    registry.leave('p1');
+
+    const result = registry.joinRoom(code, 'p3', 'Cy');
+    assert.equal(result.player.name, 'Cy');
+    assert.deepEqual(registry.publicPlayers(result.room).map(p => p.name), ['Bob', 'Cy']);
+    assert.deepEqual(registry.rejoinRoom(code, 'p4', ann.token), { error: 'INVALID_TOKEN' });
+});
+
+test('a full room with every seat connected still returns ROOM_FULL', () => {
+    const { registry, code } = setup({ maxPlayers: 2 });
+    registry.joinRoom(code, 'p1', 'Ann');
+    registry.joinRoom(code, 'p2', 'Bob');
+    assert.deepEqual(registry.joinRoom(code, 'p3', 'Cy'), { error: 'ROOM_FULL' });
+});

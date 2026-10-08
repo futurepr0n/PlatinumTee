@@ -27,6 +27,9 @@ export class TurnManager {
             player.name = name;
             player.connected = connected;
         }
+        const ids = new Set(list.map(({ id }) => id));
+        this.players = this.players.filter(player => ids.has(player.id));
+        if (this.currentId && !ids.has(this.currentId)) this.currentId = null;
     }
 
     get(id) {

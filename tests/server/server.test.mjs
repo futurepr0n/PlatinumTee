@@ -65,7 +65,10 @@ test('host creates a room, player joins, shots are relayed with a server-assigne
     await withServer(async (port) => {
         const host = await connect(port);
         host.send(MSG.HOST_CREATE);
-        const { code } = await host.next(MSG.ROOM_CREATED);
+        const created = await host.next(MSG.ROOM_CREATED);
+        const { code } = created;
+        assert.ok(Array.isArray(created.joinHosts));
+        for (const entry of created.joinHosts) assert.match(entry, new RegExp(`:${port}$`));
 
         const phone = await connect(port);
         phone.send(MSG.PLAYER_JOIN, { code, name: 'Ann' });

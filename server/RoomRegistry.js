@@ -29,8 +29,12 @@ export class RoomRegistry {
 
         const name = sanitizeName(rawName);
         if (!name) return { error: 'INVALID_NAME' };
-        if (room.players.size >= this.maxPlayers) return { error: 'ROOM_FULL' };
         if (this.connections.has(connId)) return { error: 'ALREADY_IN_ROOM' };
+        if (room.players.size >= this.maxPlayers) {
+            const ghost = [...room.players.values()].find(candidate => !candidate.connected);
+            if (!ghost) return { error: 'ROOM_FULL' };
+            room.players.delete(ghost.id);
+        }
 
         const player = { id: randomUUID(), token: randomUUID(), name, connId, connected: true };
         room.players.set(player.id, player);
