@@ -1,12 +1,13 @@
 import { MSG, encode, decode } from './protocol.js';
 import { TurnManager } from './TurnManager.js';
+import { createAutoAdvance } from '../autoAdvance.js';
 import { normalizeShotIntent } from '../shotControls/ShotIntent.js';
 import { CONTROL_MODES } from '../shotControls/controlModes.js';
 
 const TEE_POSITION = Object.freeze({ x: 0, y: 0.1, z: 0 });
 
 export class HostSession {
-    constructor({ socket, game, bus, requestNewHole, onChange = () => {}, turns = new TurnManager() }) {
+    constructor({ socket, game, bus, requestNewHole, onChange = () => {}, turns = new TurnManager(), setTimer, clearTimer }) {
         this.socket = socket;
         this.game = game;
         this.requestNewHole = requestNewHole;
@@ -16,6 +17,11 @@ export class HostSession {
         this.joinHosts = [];
         this.phase = 'lobby';
         this.holeInfo = null;
+        this.autoAdvance = createAutoAdvance({
+            onAdvance: () => this.nextHole(),
+            ...(setTimer ? { setTimer } : {}),
+            ...(clearTimer ? { clearTimer } : {})
+        });
 
         bus.on('holeDataUpdated', ({ holeData }) => { this.holeInfo = holeData; });
         bus.on('shotComplete', () => this.handleShotFinished());
@@ -108,10 +114,12 @@ export class HostSession {
     finishHole() {
         this.turns.finishHole();
         this.setPhase('hole-complete');
+        this.autoAdvance.schedule();
     }
 
     nextHole() {
         if (this.phase !== 'hole-complete') return;
+        this.autoAdvance.cancel();
 
         if (!this.game.nextHole()) {
             this.setPhase('round-complete');

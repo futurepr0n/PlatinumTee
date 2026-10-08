@@ -29,13 +29,14 @@ test('replacing a hole frees the old hole meshes but keeps shared decor resource
     assert.ok(treeMeshes.every(o => o.geometry === treeMeshes[0].geometry));
 
     const uniqueGeometries = first
-        .filter(o => ['CylinderGeometry', 'PlaneGeometry'].includes(o.geometry?.type) && o.geometry.parameters?.radiusTop !== 0.2)
+        .filter(o => (['CylinderGeometry', 'PlaneGeometry'].includes(o.geometry?.type) && o.geometry.parameters?.radiusTop !== 0.2)
+            || (o.geometry?.type === 'CircleGeometry' && o.geometry.parameters?.radius !== 1))
         .map(o => ({ o, flag: disposedFlag(o.geometry) }));
     const sharedFlag = disposedFlag(treeMeshes[0].geometry);
 
     Course.generateNewHole();
 
-    assert.ok(uniqueGeometries.length >= 3);
+    assert.ok(uniqueGeometries.length >= 4);
     assert.ok(uniqueGeometries.every(({ flag }) => flag.disposed));
     assert.equal(sharedFlag.disposed, false);
     assert.ok(uniqueGeometries.every(({ o }) => !scene.objects.has(o)));

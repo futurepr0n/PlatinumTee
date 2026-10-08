@@ -30,6 +30,8 @@ export class ResultsPanel {
             line.textContent = text;
             return line;
         }));
+        const nextButton = document.getElementById('next-hole-btn');
+        if (nextButton) nextButton.style.display = 'block';
         this.resultsEl.style.display = 'block';
     }
 
