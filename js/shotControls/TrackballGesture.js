@@ -93,7 +93,8 @@ function interpretTrackballGesture(points) {
     const velocityPower = strike.velocity / MAX_POWER_VELOCITY;
     const rollbackCharge = clamp01(strike.rollback / MAX_ROLLBACK_DISTANCE);
     const sideRatio = strike.sideRatio;
-    const directionOffset = clamp(sideRatio * 35, -35, 35);
+    const directionOffset = clamp(sideRatio * 10, -10, 10);
+    const curve = Math.sign(sideRatio) * Math.abs(sideRatio) ** 1.5;
     const rawPower = distancePower * 0.5 + velocityPower * 0.25 + rollbackCharge * 0.25;
     const power = clamp01(rawPower * POWER_CALIBRATION_MULTIPLIER);
     const accuracy = 0.5;
@@ -105,7 +106,7 @@ function interpretTrackballGesture(points) {
             directionOffset,
             power,
             accuracy,
-            curve: sideRatio,
+            curve,
             spin: clamp(rollbackCharge * 0.65 + distancePower * 0.35, -1, 1),
             launchModifier: 1,
             source: 'trackball'
