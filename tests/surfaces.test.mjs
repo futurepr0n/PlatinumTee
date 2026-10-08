@@ -11,10 +11,21 @@ function scene() {
 
 test('the course reports green around the hole, bunkers, and fairway elsewhere', () => {
     Course.initCourse(scene());
-    const hole = Course.createHole({ x: 4, z: -150 }, 4, 300);
+    const realRandom = Math.random;
+    let hole;
+    try {
+        Math.random = () => 0.5;
+        hole = Course.createHole({ x: 4, z: -150 }, 4, 300);
+    } finally {
+        Math.random = realRandom;
+    }
     const terrain = Course.getTerrainData();
 
-    assert.equal(terrain.getSurfaceAt(hole.position.x + 2, hole.position.z), 'green');
+    const zones = Course.getBunkerZones();
+    const greenX = hole.position.x + 2;
+    const inBunker = zones.some(zone => Math.hypot(zone.x - greenX, zone.z - hole.position.z) <= (zone.radius ?? zone.size ?? 0) + 0.5);
+    assert.ok(!inBunker, 'test point must not sit inside a bunker');
+    assert.equal(terrain.getSurfaceAt(greenX, hole.position.z), 'green');
     assert.equal(terrain.getSurfaceAt(60, 40), 'fairway');
     const [zone] = Course.getBunkerZones();
     assert.equal(terrain.getSurfaceAt(zone.x, zone.z), 'bunker');

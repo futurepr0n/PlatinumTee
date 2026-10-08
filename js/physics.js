@@ -18,7 +18,7 @@ const DEFAULT_VERTICAL_POWER_OFFSET = 0.12;
 
 // New Constants for Magic Numbers
 const BALL_RADIUS = 0.1; // Derived from ballGeometry in main.js
-const WIND_EFFECT_MULTIPLIER = 0.00011;
+const WIND_EFFECT_MULTIPLIER = 0.000068;
 const AIRBORNE_EPSILON = 0.02;
 const WIND_MIN_HEIGHT = 0.5;
 const SIDEWAYS_GROUND_DAMPING = 0.3;
@@ -80,6 +80,7 @@ class BallPhysics {
         this.sidespin = usesSpin ? Math.max(-1, Math.min(1, spin.side ?? 0)) : 0;
         this.backspin = usesSpin ? Math.max(0, Math.min(1, spin.back ?? 0)) : 0;
         this.rollHeading = null;
+        this.windVelocity = { x: 0, z: 0 };
     }
 
     calculateInitialVelocity() {
@@ -183,14 +184,20 @@ class BallPhysics {
         this.velocity.x *= AIR_RESISTANCE;
         this.velocity.y *= AIR_RESISTANCE;
         this.velocity.z *= AIR_RESISTANCE;
+        this.windVelocity.x *= AIR_RESISTANCE;
+        this.windVelocity.z *= AIR_RESISTANCE;
 
         const groundHeight = this.getTerrainHeightAt(ball.position.x, ball.position.z, terrain);
         const isInFlight = ball.position.y > groundHeight + BALL_RADIUS + Math.max(AIRBORNE_EPSILON, WIND_MIN_HEIGHT);
         if (isInFlight && !this.hasLanded && this.club.name !== 'putter') {
             const windRadians = this.wind.direction * (Math.PI / 180);
-            const windEffect = this.wind.speed * WIND_EFFECT_MULTIPLIER * (0.7 + (1 - this.club.maxDistance / 400) * 0.8);
-            this.velocity.x += Math.sin(windRadians) * windEffect;
-            this.velocity.z += -Math.cos(windRadians) * windEffect;
+            const windEffect = this.wind.speed * WIND_EFFECT_MULTIPLIER * (0.8 + (1 - this.club.maxDistance / 400) * 0.1);
+            const windDX = Math.sin(windRadians) * windEffect;
+            const windDZ = -Math.cos(windRadians) * windEffect;
+            this.velocity.x += windDX;
+            this.velocity.z += windDZ;
+            this.windVelocity.x += windDX;
+            this.windVelocity.z += windDZ;
         }
 
         if (isInFlight && !this.hasLanded && this.sidespin !== 0) {
@@ -312,7 +319,16 @@ class BallPhysics {
         const horizontalSpeed = Math.hypot(this.velocity.x, this.velocity.z);
         if (horizontalSpeed === 0) return;
 
-        this.rollHeading = { x: this.velocity.x / horizontalSpeed, z: this.velocity.z / horizontalSpeed };
+        let headingX = this.velocity.x - this.windVelocity.x;
+        let headingZ = this.velocity.z - this.windVelocity.z;
+        let headingLength = Math.hypot(headingX, headingZ);
+        if (headingLength < 1e-6) {
+            const dirRadians = this.direction * (Math.PI / 180);
+            headingX = Math.sin(dirRadians);
+            headingZ = -Math.cos(dirRadians);
+            headingLength = 1;
+        }
+        this.rollHeading = { x: headingX / headingLength, z: headingZ / headingLength };
         const rightX = -this.rollHeading.z;
         const rightZ = this.rollHeading.x;
         const kick = LANDING_KICK * this.sidespin * horizontalSpeed;

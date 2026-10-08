@@ -42,3 +42,8 @@ test('gusts vary speed by at most 25 % and direction by at most 15 degrees', () 
     }
     assert.deepEqual(gustWind({ direction: 90, speed: 0 }, sequence([0.9, 0.9])).speed, 0);
 });
+
+test('gusts never exceed the wind speed limit', () => {
+    const gust = gustWind({ direction: 0, speed: WIND_LIMITS.maxSpeed }, sequence([0.999, 0.5]));
+    assert.ok(gust.speed <= WIND_LIMITS.maxSpeed, `speed ${gust.speed}`);
+});

@@ -41,7 +41,7 @@ function gustWind(base, random = Math.random) {
     const turn = (random() * 2 - 1) * WIND_LIMITS.gustDirectionDegrees;
     return {
         direction: Math.round(((base.direction + turn) % 360 + 360) % 360) % 360,
-        speed: Math.max(0, Math.round(base.speed * speedFactor * 10) / 10)
+        speed: Math.min(WIND_LIMITS.maxSpeed, Math.max(0, Math.round(base.speed * speedFactor * 10) / 10))
     };
 }
 

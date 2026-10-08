@@ -45,15 +45,24 @@ function playOut(club, power, direction, wind) {
 }
 
 test('after landing in a strong crosswind the ball rolls out along its line', () => {
-    const { landing, rest, physics } = playOut('driver', 0.8, 0, { direction: 270, speed: 13 });
+    const { landing, rest } = playOut('driver', 0.8, 0, { direction: 270, speed: 13 });
 
     const airDrift = Math.abs(landing.x);
+    const groundDrift = Math.abs(rest.x - landing.x);
 
     assert.ok(airDrift > 2, `wind should still move the ball in the air (${airDrift})`);
+    assert.ok(groundDrift <= airDrift * 0.25, `ground drift ${groundDrift} vs air drift ${airDrift}`);
+});
 
-    const landingHeading = Math.atan2(physics.rollHeading.x, -physics.rollHeading.z);
-    const rollHeading = Math.atan2(rest.x - landing.x, landing.z - rest.z);
-    assert.ok(Math.abs(rollHeading - landingHeading) < 0.05, `roll ${rollHeading} vs landing ${landingHeading}`);
+test('a straight drive in a crosswind does not gain much side distance after landing', () => {
+    const { landing, rest } = playOut('driver', 0.8, 0, { direction: 270, speed: 13 });
+    assert.ok(Math.abs(rest.x) <= Math.abs(landing.x) * 1.15, `rest ${rest.x} landing ${landing.x}`);
+});
+
+test('a sand wedge in a 13 mph crosswind drifts at most 12 % of its carry', () => {
+    const { landing } = playOut('sandWedge', 0.8, 0, { direction: 270, speed: 13 });
+    const carry = Math.abs(landing.z);
+    assert.ok(Math.abs(landing.x) <= carry * 0.12, `drift ${landing.x} carry ${carry}`);
 });
 
 test('a slightly offline shot keeps rolling on its own line instead of hooking', () => {
@@ -63,10 +72,10 @@ test('a slightly offline shot keeps rolling on its own line instead of hooking',
     assert.ok(Math.abs(lineAngle - -5) < 0.5, `roll angle ${lineAngle}`);
 });
 
-test('a 13 mph crosswind moves a full drive a realistic 8-18 yards in the air', () => {
+test('a 13 mph crosswind moves a full drive a realistic 8-14 yards in the air', () => {
     const { landing } = playOut('driver', 0.8, 0, { direction: 270, speed: 13 });
     const driftYards = Math.abs(landing.x) * 2;
-    assert.ok(driftYards >= 8 && driftYards <= 18, `drift ${driftYards} yd`);
+    assert.ok(driftYards >= 8 && driftYards <= 14, `drift ${driftYards} yd`);
 });
 
 test('lofted shots are moved more by wind per yard of carry than drives', () => {

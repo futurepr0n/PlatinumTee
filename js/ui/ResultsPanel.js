@@ -1,5 +1,19 @@
 // js/ui/ResultsPanel.js - Manages the results panel UI component
 
+export function buildResultLines(shotInfo, distanceYards, strokes, relativeToPar) {
+    return [
+        `Club: ${shotInfo.club}`,
+        `Shape: ${shotInfo.shape ?? 'Straight'}`,
+        `Power: ${shotInfo.power}`,
+        `Accuracy: ${shotInfo.accuracy}`,
+        `Direction: ${shotInfo.direction}°`,
+        `Distance: ${distanceYards} yards`,
+        ...(shotInfo.wind && shotInfo.club !== 'putter' ? [`Wind: ${shotInfo.wind.speed} mph`] : []),
+        `Strokes: ${strokes}`,
+        `To Par: ${relativeToPar > 0 ? '+' : ''}${relativeToPar}`
+    ];
+}
+
 export class ResultsPanel {
     constructor(resultsElId, resultTextElId, shotInfoElId) {
         this.resultsEl = document.getElementById(resultsElId);
@@ -10,17 +24,7 @@ export class ResultsPanel {
         if (!this.resultTextEl || !this.shotInfoEl || !this.resultsEl) return;
 
         this.resultTextEl.textContent = resultText;
-        const lines = [
-            `Club: ${shotInfo.club}`,
-            `Shape: ${shotInfo.shape ?? 'Straight'}`,
-            `Power: ${shotInfo.power}`,
-            `Accuracy: ${shotInfo.accuracy}`,
-            `Direction: ${shotInfo.direction}°`,
-            `Distance: ${distanceYards} yards`,
-            ...(shotInfo.wind ? [`Wind: ${shotInfo.wind.speed} mph`] : []),
-            `Strokes: ${strokes}`,
-            `To Par: ${relativeToPar > 0 ? '+' : ''}${relativeToPar}`
-        ];
+        const lines = buildResultLines(shotInfo, distanceYards, strokes, relativeToPar);
         this.shotInfoEl.replaceChildren(...lines.map(text => {
             const line = document.createElement('p');
             line.textContent = text;

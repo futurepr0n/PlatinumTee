@@ -13,9 +13,12 @@ const realRandom = Math.random;
 function shoot(source, curve) {
     const ball = { position: makeVector(), rotation: makeVector(0, 0, 0) };
     const arrow = { position: makeVector(0, 0.3, -1.5), rotation: makeVector(0, 0, 0), visible: true };
-    Math.random = () => 0;
-    GameState.initGameState({}, ball, arrow);
-    Math.random = realRandom;
+    try {
+        Math.random = () => 0;
+        GameState.initGameState({}, ball, arrow);
+    } finally {
+        Math.random = realRandom;
+    }
     GameState.setHoleData({ position: { x: 0, y: 0, z: -300 }, par: 5, distance: 600 });
     GameState.setControlMode(source);
     GameState.setCurrentClub('driver');
