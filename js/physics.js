@@ -18,7 +18,7 @@ const DEFAULT_VERTICAL_POWER_OFFSET = 0.12;
 
 // New Constants for Magic Numbers
 const BALL_RADIUS = 0.1; // Derived from ballGeometry in main.js
-const WIND_EFFECT_MULTIPLIER = 0.0002;
+const WIND_EFFECT_MULTIPLIER = 0.00011;
 const AIRBORNE_EPSILON = 0.02;
 const WIND_MIN_HEIGHT = 0.5;
 const SIDEWAYS_GROUND_DAMPING = 0.3;
@@ -174,7 +174,7 @@ class BallPhysics {
         const isInFlight = ball.position.y > groundHeight + BALL_RADIUS + Math.max(AIRBORNE_EPSILON, WIND_MIN_HEIGHT);
         if (isInFlight && !this.hasLanded && this.club.name !== 'putter') {
             const windRadians = this.wind.direction * (Math.PI / 180);
-            const windEffect = this.wind.speed * WIND_EFFECT_MULTIPLIER;
+            const windEffect = this.wind.speed * WIND_EFFECT_MULTIPLIER * (0.7 + (1 - this.club.maxDistance / 400) * 0.8);
             this.velocity.x += Math.sin(windRadians) * windEffect;
             this.velocity.z += -Math.cos(windRadians) * windEffect;
         }

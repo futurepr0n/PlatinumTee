@@ -62,3 +62,23 @@ test('a slightly offline shot keeps rolling on its own line instead of hooking',
     const lineAngle = Math.atan2(rest.x - landing.x, landing.z - rest.z) * 180 / Math.PI;
     assert.ok(Math.abs(lineAngle - -5) < 0.5, `roll angle ${lineAngle}`);
 });
+
+test('a 13 mph crosswind moves a full drive a realistic 8-18 yards in the air', () => {
+    const { landing } = playOut('driver', 0.8, 0, { direction: 270, speed: 13 });
+    const driftYards = Math.abs(landing.x) * 2;
+    assert.ok(driftYards >= 8 && driftYards <= 18, `drift ${driftYards} yd`);
+});
+
+test('lofted shots are moved more by wind per yard of carry than drives', () => {
+    const drive = playOut('driver', 0.8, 0, { direction: 90, speed: 13 }).landing;
+    const wedge = playOut('pitchingWedge', 0.8, 0, { direction: 90, speed: 13 }).landing;
+    assert.ok(Math.abs(wedge.x / wedge.z) > Math.abs(drive.x / drive.z));
+});
+
+test('headwind shortens and tailwind lengthens carry', () => {
+    const calm = -playOut('driver', 0.8, 0, { direction: 0, speed: 0 }).landing.z;
+    const head = -playOut('driver', 0.8, 0, { direction: 180, speed: 13 }).landing.z;
+    const tail = -playOut('driver', 0.8, 0, { direction: 0, speed: 13 }).landing.z;
+    assert.ok(head < calm * 0.95, `head ${head} calm ${calm}`);
+    assert.ok(tail > calm, `tail ${tail} calm ${calm}`);
+});
