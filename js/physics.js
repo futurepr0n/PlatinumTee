@@ -20,6 +20,8 @@ const DEFAULT_VERTICAL_POWER_OFFSET = 0.12;
 const BALL_RADIUS = 0.1; // Derived from ballGeometry in main.js
 const WIND_EFFECT_MULTIPLIER = 0.0002;
 const AIRBORNE_EPSILON = 0.02;
+const WIND_MIN_HEIGHT = 0.5;
+const SIDEWAYS_GROUND_DAMPING = 0.3;
 const PUTTER_ROTATION_SPEED = 0.2;
 const DEFAULT_ROTATION_SPEED = 0.5;
 const HOLE_RADIUS = 0.1875;
@@ -63,6 +65,7 @@ class BallPhysics {
         
         // Track bounce count to determine when to stop the ball
         this.bounceCount = 0;
+        this.hasLanded = false;
     }
 
     calculateInitialVelocity() {
@@ -168,8 +171,8 @@ class BallPhysics {
         this.velocity.z *= AIR_RESISTANCE;
 
         const groundHeight = this.getTerrainHeightAt(ball.position.x, ball.position.z, terrain);
-        const isAirborne = ball.position.y > groundHeight + BALL_RADIUS + AIRBORNE_EPSILON;
-        if (isAirborne && this.club.name !== 'putter') {
+        const isInFlight = ball.position.y > groundHeight + BALL_RADIUS + Math.max(AIRBORNE_EPSILON, WIND_MIN_HEIGHT);
+        if (isInFlight && !this.hasLanded && this.club.name !== 'putter') {
             const windRadians = this.wind.direction * (Math.PI / 180);
             const windEffect = this.wind.speed * WIND_EFFECT_MULTIPLIER;
             this.velocity.x += Math.sin(windRadians) * windEffect;
@@ -248,6 +251,8 @@ class BallPhysics {
             
             this.velocity.x *= frictionFactor;
             this.velocity.z *= frictionFactor;
+            this.hasLanded = true;
+            this.dampSidewaysVelocity();
             
             // Track bounces to determine when to stop
             this.bounceCount++;
@@ -270,6 +275,17 @@ class BallPhysics {
         }
         
         return true; // Ball is still moving
+    }
+
+    dampSidewaysVelocity() {
+        const dirRadians = this.direction * (Math.PI / 180);
+        const lineX = Math.sin(dirRadians);
+        const lineZ = -Math.cos(dirRadians);
+        const along = this.velocity.x * lineX + this.velocity.z * lineZ;
+        const sidewaysX = this.velocity.x - along * lineX;
+        const sidewaysZ = this.velocity.z - along * lineZ;
+        this.velocity.x = along * lineX + sidewaysX * SIDEWAYS_GROUND_DAMPING;
+        this.velocity.z = along * lineZ + sidewaysZ * SIDEWAYS_GROUND_DAMPING;
     }
 
     getTerrainHeightAt(x, z, terrain) {
