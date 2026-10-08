@@ -11,8 +11,8 @@ async function readProjectFile(path) {
 test('game manager wires selectable shot control events into game state', async () => {
     const source = await readProjectFile('js/gameManager.js');
 
-    assert.match(source, /eventBus\.on\('controlModeChangeRequested', \(controlMode\) => \{[\s\S]*Controls\.areControlsEnabled\(\)[\s\S]*GameState\.setControlMode\(controlMode\);[\s\S]*\}\);/);
-    assert.match(source, /eventBus\.on\('trackballShotRequested', \(intent\) => \{[\s\S]*Controls\.areControlsEnabled\(\)[\s\S]*GameState\.takeShotFromIntent\(intent\);[\s\S]*\}\);/);
+    assert.match(source, /eventBus\.on\('controlModeChangeRequested', \(controlMode\) => \{[\s\S]*acceptsLocalInput\(\)[\s\S]*GameState\.setControlMode\(controlMode\);[\s\S]*\}\);/);
+    assert.match(source, /eventBus\.on\('trackballShotRequested', \(intent\) => \{[\s\S]*acceptsLocalInput\(\)[\s\S]*GameState\.takeShotFromIntent\(intent\);[\s\S]*\}\);/);
 });
 
 test('keyboard controls cycle control modes with M', async () => {

@@ -96,54 +96,55 @@ export class GameManager {
     }
 
     setupUIEventListeners() {
+        const acceptsLocalInput = () => !this.hostSession && Controls.areControlsEnabled();
+
         eventBus.on('swingButtonClicked', () => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             GameState.startPowerMeter();
         });
 
         eventBus.on('powerButtonClicked', () => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             const powerValue = UI.powerMeter.stopAnimation();
             GameState.setPower(powerValue);
         });
 
         eventBus.on('accuracyButtonClicked', () => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             const accuracyValue = UI.accuracyMeter.stopAnimation();
             GameState.setAccuracy(accuracyValue);
         });
 
         eventBus.on('nextHoleButtonClicked', () => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             if (GameState.nextHole()) {
                 this.generateNewHole();
             }
         });
 
         eventBus.on('adjustDirectionRequested', (amount) => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             GameState.adjustDirection(amount);
         });
 
         eventBus.on('clubSelected', (clubName) => {
             if (typeof clubName !== 'string') return;
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             GameState.setCurrentClub(clubName);
         });
 
         eventBus.on('controlModeChangeRequested', (controlMode) => {
-            if (this.hostSession) return;
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             GameState.setControlMode(controlMode);
         });
 
         eventBus.on('trackballShotRequested', (intent) => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             GameState.takeShotFromIntent(intent);
         });
         
         eventBus.on('simulateSpecificButtonPressRequested', (data) => {
-            if (!Controls.areControlsEnabled()) return;
+            if (!acceptsLocalInput()) return;
             
             const gameState = data?.gameState || GameState.getGameState();
 
