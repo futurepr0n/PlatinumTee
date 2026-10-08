@@ -3,6 +3,13 @@
 // Camera reference
 let camera = null;
 
+const FOLLOW_DISTANCE = 6;
+const FOLLOW_HEIGHT = 2;
+const FOLLOW_MIN_HEIGHT = 1;
+const FOLLOW_SMOOTHING = 0.1;
+const FOLLOW_TURN_RATE = 0.08;
+const FOLLOW_MIN_MOVE = 0.0001;
+
 // Camera state
 let cameraState = {
     mode: 'overview', // 'overview', 'aiming', 'following', 'result'
@@ -11,7 +18,8 @@ let cameraState = {
     transitionSpeed: 0.1,
     distance: 10,
     height: 5,
-    offset: { x: 0, y: 0, z: 0 },
+    heading: { x: 0, z: -1 },
+    lastBallPosition: null,
     currentLookAt: { x: 0, y: 0, z: 0 }
 };
 
@@ -124,34 +132,21 @@ function setShotSetupMode(ballPosition, direction, clubName, holePosition) {
  * Set camera to follow the ball in flight
  * @param {Object} ballPosition - Current position of the ball
  */
-function setFollowMode(ballPosition) {
+function setFollowMode(ballPosition, direction = 0) {
     if (!camera || !ballPosition) return;
-    
+
+    const dirRadians = direction * (Math.PI / 180);
     cameraState.mode = 'following';
-    cameraState.target = { ...ballPosition };
-    
-    // Calculate camera offset from ball - This prevents obstruction from terrain
-    const idealOffset = { 
-        x: 3,  // Offset to the right
-        y: 2,  // Above the ball
-        z: 6   // Behind the ball
-    };
-    
-    // Set camera position offset from ball
+    cameraState.heading = { x: Math.sin(dirRadians), z: -Math.cos(dirRadians) };
+    cameraState.lastBallPosition = { x: ballPosition.x, y: ballPosition.y, z: ballPosition.z };
+
     camera.position.set(
-        ballPosition.x + idealOffset.x,
-        ballPosition.y + idealOffset.y,
-        ballPosition.z + idealOffset.z
+        ballPosition.x - cameraState.heading.x * FOLLOW_DISTANCE,
+        Math.max(ballPosition.y + FOLLOW_HEIGHT, FOLLOW_MIN_HEIGHT),
+        ballPosition.z - cameraState.heading.z * FOLLOW_DISTANCE
     );
-    
-    // Look at the ball
     camera.lookAt(ballPosition.x, ballPosition.y, ballPosition.z);
-    
-    // Update currentLookAt
     cameraState.currentLookAt = { ...ballPosition };
-    
-    // Save the current offset for smooth transitions
-    cameraState.offset = { ...idealOffset };
 }
 
 /**
@@ -222,27 +217,32 @@ function updateCamera(ballPosition) {
     
     // Handle different camera modes
     switch (cameraState.mode) {
-        case 'following':
+        case 'following': {
             if (!ballPosition) return;
-            
-            // Smoothly follow the ball
-            let targetPosition = {
-                x: ballPosition.x + cameraState.offset.x,
-                y: Math.max(ballPosition.y + cameraState.offset.y, 1), // Keep camera above ground
-                z: ballPosition.z + cameraState.offset.z
-            };
-            
-            // Smooth transition to new position
-            camera.position.x += (targetPosition.x - camera.position.x) * 0.1;
-            camera.position.y += (targetPosition.y - camera.position.y) * 0.1;
-            camera.position.z += (targetPosition.z - camera.position.z) * 0.1;
-            
-            // Look at the ball
+
+            const last = cameraState.lastBallPosition ?? ballPosition;
+            const moveX = ballPosition.x - last.x;
+            const moveZ = ballPosition.z - last.z;
+            const moved = Math.hypot(moveX, moveZ);
+            if (moved > FOLLOW_MIN_MOVE) {
+                const blendedX = cameraState.heading.x + (moveX / moved - cameraState.heading.x) * FOLLOW_TURN_RATE;
+                const blendedZ = cameraState.heading.z + (moveZ / moved - cameraState.heading.z) * FOLLOW_TURN_RATE;
+                const length = Math.hypot(blendedX, blendedZ) || 1;
+                cameraState.heading = { x: blendedX / length, z: blendedZ / length };
+            }
+            cameraState.lastBallPosition = { x: ballPosition.x, y: ballPosition.y, z: ballPosition.z };
+
+            const targetX = ballPosition.x - cameraState.heading.x * FOLLOW_DISTANCE;
+            const targetY = Math.max(ballPosition.y + FOLLOW_HEIGHT, FOLLOW_MIN_HEIGHT);
+            const targetZ = ballPosition.z - cameraState.heading.z * FOLLOW_DISTANCE;
+            camera.position.x += (targetX - camera.position.x) * FOLLOW_SMOOTHING;
+            camera.position.y += (targetY - camera.position.y) * FOLLOW_SMOOTHING;
+            camera.position.z += (targetZ - camera.position.z) * FOLLOW_SMOOTHING;
+
             camera.lookAt(ballPosition.x, ballPosition.y, ballPosition.z);
-            
-            // Update currentLookAt
             cameraState.currentLookAt = { ...ballPosition };
             break;
+        }
             
         // Add additional camera mode updates if needed
         default:
