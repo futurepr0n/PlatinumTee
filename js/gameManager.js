@@ -65,6 +65,10 @@ export class GameManager {
             UI.updateUI(data.fullState);
         });
 
+        eventBus.on('outOfBounds', (data) => {
+            UI.showTemporaryMessage(`Out of bounds! Penalty stroke — now playing ${data.strokes + 1}.`);
+        });
+
         eventBus.on('holeDataUpdated', (data) => {
             UI.gameInfo.updateHoleInfo(data.holeData);
             UI.updateUI(data.fullState);
@@ -203,12 +207,8 @@ export class GameManager {
 
     handleHoleComplete(scoreName, shotInfo, strokes, relativeToPar, scoreCard) {
         if (this.hostSession) return;
-        const shotDistance = Math.sqrt(
-            Math.pow(this.ball.position.x, 2) +
-            Math.pow(this.ball.position.z, 2)
-        );
-        const distanceYards = Math.round(shotDistance / Physics.YARDS_TO_UNITS);
-        
+        const distanceYards = shotInfo.distanceYards ?? 0;
+
         UI.resultsPanel.displayResults(
             `${scoreName}! (${strokes} strokes)`,
             shotInfo,
