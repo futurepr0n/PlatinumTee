@@ -22,6 +22,10 @@ const WIND_EFFECT_MULTIPLIER = 0.00011;
 const AIRBORNE_EPSILON = 0.02;
 const WIND_MIN_HEIGHT = 0.5;
 const SIDEWAYS_GROUND_DAMPING = 0.3;
+const SIDESPIN_ACCEL = 0.0035;
+const SIDESPIN_DECAY = 0.995;
+const LANDING_KICK = 0.15;
+const BACKSPIN_CHECK = 0.5;
 const PUTTER_ROTATION_SPEED = 0.2;
 const DEFAULT_ROTATION_SPEED = 0.5;
 const HOLE_RADIUS = 0.1875;
@@ -50,7 +54,7 @@ let terrainHeightMap = null;
 
 // Ball physics state
 class BallPhysics {
-    constructor(initialPosition, direction, power, club, wind = { direction: 0, speed: 0 }, holePosition = null) {
+    constructor(initialPosition, direction, power, club, wind = { direction: 0, speed: 0 }, holePosition = null, spin = { side: 0, back: 0 }) {
         this.initialPosition = { ...initialPosition };
         this.direction = direction;
         this.power = power;
@@ -66,6 +70,11 @@ class BallPhysics {
         // Track bounce count to determine when to stop the ball
         this.bounceCount = 0;
         this.hasLanded = false;
+
+        const usesSpin = club.name !== 'putter';
+        this.sidespin = usesSpin ? Math.max(-1, Math.min(1, spin.side ?? 0)) : 0;
+        this.backspin = usesSpin ? Math.max(0, Math.min(1, spin.back ?? 0)) : 0;
+        this.rollHeading = null;
     }
 
     calculateInitialVelocity() {
@@ -179,6 +188,18 @@ class BallPhysics {
             this.velocity.z += -Math.cos(windRadians) * windEffect;
         }
 
+        if (isInFlight && !this.hasLanded && this.sidespin !== 0) {
+            const horizontalSpeed = Math.hypot(this.velocity.x, this.velocity.z);
+            if (horizontalSpeed > 0) {
+                const rightX = -this.velocity.z / horizontalSpeed;
+                const rightZ = this.velocity.x / horizontalSpeed;
+                const bend = SIDESPIN_ACCEL * this.sidespin * horizontalSpeed;
+                this.velocity.x += rightX * bend;
+                this.velocity.z += rightZ * bend;
+            }
+            this.sidespin *= SIDESPIN_DECAY;
+        }
+
         // Update ball position
         ball.position.x += this.velocity.x;
         ball.position.y += this.velocity.y;
@@ -251,7 +272,10 @@ class BallPhysics {
             
             this.velocity.x *= frictionFactor;
             this.velocity.z *= frictionFactor;
-            this.hasLanded = true;
+            if (!this.hasLanded) {
+                this.hasLanded = true;
+                this.applyLandingSpin();
+            }
             this.dampSidewaysVelocity();
             
             // Track bounces to determine when to stop
@@ -277,10 +301,32 @@ class BallPhysics {
         return true; // Ball is still moving
     }
 
+    applyLandingSpin() {
+        const horizontalSpeed = Math.hypot(this.velocity.x, this.velocity.z);
+        if (horizontalSpeed === 0) return;
+
+        this.rollHeading = { x: this.velocity.x / horizontalSpeed, z: this.velocity.z / horizontalSpeed };
+        const rightX = -this.rollHeading.z;
+        const rightZ = this.rollHeading.x;
+        const kick = LANDING_KICK * this.sidespin * horizontalSpeed;
+        const check = 1 - BACKSPIN_CHECK * this.backspin;
+
+        this.velocity.x = this.velocity.x * check + rightX * kick;
+        this.velocity.z = this.velocity.z * check + rightZ * kick;
+        this.sidespin = 0;
+    }
+
     dampSidewaysVelocity() {
-        const dirRadians = this.direction * (Math.PI / 180);
-        const lineX = Math.sin(dirRadians);
-        const lineZ = -Math.cos(dirRadians);
+        let lineX;
+        let lineZ;
+        if (this.rollHeading) {
+            lineX = this.rollHeading.x;
+            lineZ = this.rollHeading.z;
+        } else {
+            const dirRadians = this.direction * (Math.PI / 180);
+            lineX = Math.sin(dirRadians);
+            lineZ = -Math.cos(dirRadians);
+        }
         const along = this.velocity.x * lineX + this.velocity.z * lineZ;
         const sidewaysX = this.velocity.x - along * lineX;
         const sidewaysZ = this.velocity.z - along * lineZ;

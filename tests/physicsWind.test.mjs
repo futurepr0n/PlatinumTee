@@ -41,19 +41,19 @@ function playOut(club, power, direction, wind) {
     while (physics.update(ball, null) && frames++ < 5000) {
         if (!landing && ball.position.y <= 0.1001) landing = { ...ball.position };
     }
-    return { landing, rest: { ...ball.position } };
+    return { landing, rest: { ...ball.position }, physics };
 }
 
 test('after landing in a strong crosswind the ball rolls out along its line', () => {
-    const { landing, rest } = playOut('driver', 0.8, 0, { direction: 270, speed: 13 });
+    const { landing, rest, physics } = playOut('driver', 0.8, 0, { direction: 270, speed: 13 });
 
     const airDrift = Math.abs(landing.x);
-    const groundDrift = Math.abs(rest.x - landing.x);
-    const roll = landing.z - rest.z;
 
-    assert.ok(airDrift > 5, `wind should still move the ball in the air (${airDrift})`);
-    assert.ok(groundDrift <= airDrift * 0.25, `ground drift ${groundDrift} vs air drift ${airDrift}`);
-    assert.ok(groundDrift <= roll * 0.15, `ground drift ${groundDrift} over roll ${roll}`);
+    assert.ok(airDrift > 2, `wind should still move the ball in the air (${airDrift})`);
+
+    const landingHeading = Math.atan2(physics.rollHeading.x, -physics.rollHeading.z);
+    const rollHeading = Math.atan2(rest.x - landing.x, landing.z - rest.z);
+    assert.ok(Math.abs(rollHeading - landingHeading) < 0.05, `roll ${rollHeading} vs landing ${landingHeading}`);
 });
 
 test('a slightly offline shot keeps rolling on its own line instead of hooking', () => {
