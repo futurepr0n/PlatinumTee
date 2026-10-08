@@ -9,6 +9,7 @@ import * as Controls from './controls.js';
 import { getClub } from './clubs.js';
 import { MAX_STROKES_PER_HOLE } from './rules.js';
 import { followShadowLight } from './lighting.js';
+import { createAutoAdvance } from './autoAdvance.js';
 import { eventBus } from './events.js';
 import { HostSession } from './net/HostSession.js';
 import { LobbyPanel } from './ui/LobbyPanel.js';
@@ -22,6 +23,7 @@ export class GameManager {
         this.ball = ball;
         this.directionArrow = directionArrow;
         this.shadowLight = shadowLight;
+        this.autoAdvance = createAutoAdvance({ onAdvance: () => eventBus.emit('nextHoleButtonClicked') });
 
         this.animationFrame = null;
         this.hostSession = null;
@@ -141,6 +143,7 @@ export class GameManager {
 
         eventBus.on('nextHoleButtonClicked', () => {
             if (!acceptsLocalInput()) return;
+            this.autoAdvance.cancel();
             if (this.roundSummaryShown) {
                 this.roundSummaryShown = false;
                 UI.resultsPanel.hide();
@@ -153,6 +156,7 @@ export class GameManager {
                 this.showRoundSummary();
                 return;
             }
+            UI.resultsPanel.hide();
             if (GameState.nextHole()) {
                 this.generateNewHole();
             }
@@ -250,6 +254,7 @@ export class GameManager {
             relativeToPar
         );
         UI.scorecard.updateScoreCard(scoreCard, GameState.getTotalHoles());
+        this.autoAdvance.schedule();
     }
 
 

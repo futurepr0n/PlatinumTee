@@ -43,9 +43,8 @@ const HILL_Z_OFFSET = 50;
 
 // Hole
 const HOLE_RADIUS_VISUAL = 0.1875; // Slightly larger arcade cup for clearer capture
-const HOLE_HEIGHT_VISUAL = 0.1;
 const HOLE_COLOR = 0x000000;
-const HOLE_VERTICAL_OFFSET = 0.05; // Position above terrain height
+const HOLE_ABOVE_GREEN = 0.004;
 
 // Green
 const GREEN_RADIUS = 14;
@@ -196,8 +195,7 @@ function createHole(holePosition, holePar, holeDistance) {
     // Clear any existing hole elements
     [hole, flagpole, flag, green].forEach(object => disposeObject(scene, object));
     
-    // Create the actual hole (black cylinder)
-    const holeGeometry = new THREE.CylinderGeometry(HOLE_RADIUS_VISUAL, HOLE_RADIUS_VISUAL, HOLE_HEIGHT_VISUAL, 32); // Smaller hole for smaller ball
+    const holeGeometry = new THREE.CircleGeometry(HOLE_RADIUS_VISUAL, 32);
     const holeMaterial = new THREE.MeshStandardMaterial({ color: HOLE_COLOR });
     hole = new THREE.Mesh(holeGeometry, holeMaterial);
     
@@ -206,9 +204,8 @@ function createHole(holePosition, holePar, holeDistance) {
     // Get terrain height at hole position
     const holeTerrainHeight = getTerrainHeightAt(holePosition.x, holePosition.z);
     
-    // Position hole at terrain height
-    hole.position.set(holePosition.x, holeTerrainHeight + HOLE_VERTICAL_OFFSET, holePosition.z);
-    hole.rotation.x = Math.PI / 2;
+    hole.position.set(holePosition.x, holeTerrainHeight + GREEN_VERTICAL_OFFSET + HOLE_ABOVE_GREEN, holePosition.z);
+    hole.rotation.x = -Math.PI / 2;
     scene.add(hole);
     
     // Create a visible green around the hole
