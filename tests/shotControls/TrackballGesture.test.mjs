@@ -101,3 +101,33 @@ test('interpretTrackballGesture maps side exit angle into curve and direction of
     assert.equal(result.intent.accuracy, 0.5);
     assert.ok(result.metrics.strikeQuality < 0.9);
 });
+
+test('a natural sideways arc in an upward flick does not pull the shot off line', () => {
+    const points = [];
+    for (let i = 0; i <= 10; i++) {
+        points.push({ x: 200 - 30 * (i / 10) ** 2, y: 300 + (i < 3 ? i * 10 : 30 - (i - 2) * 25), t: i * 12 });
+    }
+
+    const result = interpretTrackballGesture(points);
+
+    assert.equal(result.valid, true);
+    assert.ok(Math.abs(result.intent.directionOffset) < 2, `offset ${result.intent.directionOffset}`);
+    assert.ok(Math.abs(result.intent.curve) < 0.1, `curve ${result.intent.curve}`);
+});
+
+test('side steering depends on swipe angle, not screen size', () => {
+    const small = interpretTrackballGesture([
+        { x: 100, y: 200, t: 0 },
+        { x: 100, y: 240, t: 60 },
+        { x: 130, y: 140, t: 120 },
+        { x: 160, y: 40, t: 180 }
+    ]);
+    const large = interpretTrackballGesture([
+        { x: 100, y: 200, t: 0 },
+        { x: 100, y: 280, t: 60 },
+        { x: 160, y: 80, t: 120 },
+        { x: 220, y: -120, t: 180 }
+    ]);
+
+    assert.ok(Math.abs(small.intent.directionOffset - large.intent.directionOffset) < 0.5);
+});

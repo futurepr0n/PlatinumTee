@@ -6,16 +6,17 @@ const MIN_STRIKE_DISTANCE = 28;
 const MAX_POWER_DISTANCE = 170;
 const MAX_POWER_VELOCITY = 1.3;
 const MAX_ROLLBACK_DISTANCE = 95;
-const MAX_SIDE_DRIFT = 150;
-const SIDE_DEADZONE = 12;
+const SIDE_DEADZONE_DEGREES = 8;
+const MAX_SIDE_ANGLE_DEGREES = 30;
 const POWER_CALIBRATION_MULTIPLIER = 2.25;
 
-function applySideDeadzone(dx) {
-    const magnitude = Math.abs(dx);
-    if (magnitude <= SIDE_DEADZONE) return 0;
+function getSideRatio(dx, forward) {
+    const angle = Math.atan2(dx, Math.max(forward, 1)) * (180 / Math.PI);
+    const magnitude = Math.abs(angle);
+    if (magnitude <= SIDE_DEADZONE_DEGREES) return 0;
 
-    const adjusted = magnitude - SIDE_DEADZONE;
-    return Math.sign(dx) * adjusted;
+    const adjusted = (magnitude - SIDE_DEADZONE_DEGREES) / (MAX_SIDE_ANGLE_DEGREES - SIDE_DEADZONE_DEGREES);
+    return Math.sign(angle) * clamp(adjusted, 0, 1);
 }
 
 function getForwardGestureVector(points) {
@@ -48,7 +49,7 @@ function getStrikeVector(points) {
     const distance = Math.hypot(dx, dy);
     const forward = Math.max(0, -dy);
     const velocity = distance / dt;
-    const sideRatio = clamp(applySideDeadzone(dx) / (MAX_SIDE_DRIFT - SIDE_DEADZONE), -1, 1);
+    const sideRatio = getSideRatio(dx, forward);
 
     return {
         dx,
