@@ -85,20 +85,29 @@ els.form.addEventListener('submit', (event) => {
 });
 
 let points = [];
+let activePointerId = null;
 els.pad.addEventListener('pointerdown', (event) => {
-    if (!client.isMyTurn()) return;
+    if (activePointerId !== null || !client.isMyTurn()) return;
+    activePointerId = event.pointerId;
     els.pad.setPointerCapture(event.pointerId);
     points = [{ x: event.clientX, y: event.clientY, t: event.timeStamp }];
 });
 els.pad.addEventListener('pointermove', (event) => {
-    if (points.length) points.push({ x: event.clientX, y: event.clientY, t: event.timeStamp });
+    if (event.pointerId !== activePointerId || !points.length) return;
+    points.push({ x: event.clientX, y: event.clientY, t: event.timeStamp });
 });
-els.pad.addEventListener('pointerup', () => {
+els.pad.addEventListener('pointerup', (event) => {
+    if (event.pointerId !== activePointerId) return;
     const result = interpretTrackballGesture(points);
     points = [];
+    activePointerId = null;
     if (result.valid) client.sendShot(result.intent);
 });
-els.pad.addEventListener('pointercancel', () => { points = []; });
+els.pad.addEventListener('pointercancel', (event) => {
+    if (event.pointerId !== activePointerId) return;
+    points = [];
+    activePointerId = null;
+});
 
 render(client.state);
 connect();

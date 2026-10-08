@@ -1,13 +1,28 @@
 import { MSG, encode, decode } from '../net/protocol.js';
 
 const SESSION_KEY = 'platinumtee:session';
+export const SHOT_ACK_TIMEOUT_MS = 2000;
 
 export class ControllerClient {
-    constructor({ storage, onChange = () => {} }) {
+    constructor({
+        storage,
+        onChange = () => {},
+        setTimer = (fn, ms) => setTimeout(fn, ms),
+        clearTimer = id => clearTimeout(id)
+    }) {
         this.storage = storage;
         this.onChange = onChange;
+        this.setTimer = setTimer;
+        this.clearTimer = clearTimer;
+        this.pendingAck = null;
         this.socket = null;
         this.state = { status: 'connecting', playerId: null, name: null, code: null, update: null, error: null };
+    }
+
+    clearPendingAck() {
+        if (!this.pendingAck) return;
+        this.clearTimer(this.pendingAck.timer);
+        this.pendingAck = null;
     }
 
     attach(socket) {
@@ -44,6 +59,7 @@ export class ControllerClient {
     }
 
     handleDisconnect() {
+        this.clearPendingAck();
         if (this.state.status !== 'closed') this.set({ status: 'reconnecting' });
     }
 
@@ -60,8 +76,10 @@ export class ControllerClient {
             this.writeSession({ code: payload.code, token: payload.token });
             this.set({ status: 'joined', playerId: payload.playerId, name: payload.name, code: payload.code, error: null });
         } else if (message.type === MSG.GAME_UPDATE) {
+            this.clearPendingAck();
             this.set({ update: payload });
         } else if (message.type === MSG.ROOM_CLOSED) {
+            this.clearPendingAck();
             this.writeSession(null);
             this.set({ status: 'closed', update: null });
         } else if (message.type === MSG.ERROR && this.state.status !== 'joined') {
@@ -78,8 +96,17 @@ export class ControllerClient {
     sendShot(intent) {
         if (!intent || !this.isMyTurn()) return false;
 
+        this.clearPendingAck();
+        const previous = this.state.update;
+        const pending = { timer: null, previous };
+        this.pendingAck = pending;
         this.socket.send(encode(MSG.PLAYER_SHOT, { intent }));
-        this.set({ update: { ...this.state.update, phase: 'in-flight' } });
+        this.set({ update: { ...previous, phase: 'in-flight' } });
+        pending.timer = this.setTimer(() => {
+            if (this.pendingAck !== pending) return;
+            this.pendingAck = null;
+            this.set({ update: pending.previous });
+        }, SHOT_ACK_TIMEOUT_MS);
         return true;
     }
 }

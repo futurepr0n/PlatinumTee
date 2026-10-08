@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ControllerClient } from '../../js/controller/ControllerClient.js';
+import { ControllerClient, SHOT_ACK_TIMEOUT_MS } from '../../js/controller/ControllerClient.js';
 import { MSG, encode } from '../../js/net/protocol.js';
 
 function memoryStorage() {
@@ -81,4 +81,54 @@ test('works when storage is unavailable', () => {
     client.attach({ send: () => {} });
     assert.doesNotThrow(() => client.handleOpen());
     assert.doesNotThrow(() => client.handleMessage(encode(MSG.PLAYER_WELCOME, { playerId: 'p', token: 't', code: 'ABCD', name: 'A' })));
+});
+
+function timedSetup() {
+    const timers = [];
+    const cleared = [];
+    const sent = [];
+    const client = new ControllerClient({
+        storage: memoryStorage(),
+        setTimer: (fn, ms) => { const timer = { fn, ms }; timers.push(timer); return timer; },
+        clearTimer: timer => cleared.push(timer)
+    });
+    client.attach({ send: raw => sent.push(JSON.parse(raw)) });
+    const receive = (type, payload) => client.handleMessage(encode(type, payload));
+    receive(MSG.PLAYER_WELCOME, { playerId: 'p1', token: 't1', code: 'ABCD', name: 'Ann' });
+    receive(MSG.GAME_UPDATE, { phase: 'aiming', turnPlayerId: 'p1' });
+    return { client, sent, timers, cleared, receive };
+}
+
+test('an unacknowledged shot restores my turn when the ack timer fires', () => {
+    const { client, timers, receive } = timedSetup();
+    assert.equal(client.sendShot({ power: 1 }), true);
+    assert.equal(client.isMyTurn(), false);
+    assert.equal(timers.length, 1);
+    assert.equal(timers[0].ms, SHOT_ACK_TIMEOUT_MS);
+
+    timers[0].fn();
+    assert.equal(client.isMyTurn(), true);
+    assert.equal(client.sendShot({ power: 1 }), true);
+    receive(MSG.GAME_UPDATE, { phase: 'aiming', turnPlayerId: 'p1' });
+});
+
+test('a game update acknowledges the shot and clears the ack timer', () => {
+    const { client, timers, cleared, receive } = timedSetup();
+    client.sendShot({ power: 1 });
+    receive(MSG.GAME_UPDATE, { phase: 'in-flight', turnPlayerId: 'p1' });
+    assert.deepEqual(cleared, [timers[0]]);
+
+    timers[0].fn();
+    assert.equal(client.state.update.phase, 'in-flight');
+    assert.equal(client.isMyTurn(), false);
+});
+
+test('room close and disconnect clear the pending ack timer', () => {
+    const { client, timers, cleared, receive } = timedSetup();
+    client.sendShot({ power: 1 });
+    client.handleDisconnect();
+    assert.deepEqual(cleared, [timers[0]]);
+
+    timers[0].fn();
+    assert.equal(client.state.update.phase, 'in-flight');
 });
