@@ -270,39 +270,7 @@ class BallPhysics {
     }
 
     getTerrainHeightAt(x, z, terrain) {
-        // If there's no terrain, just use ground level (0)
-        if (!terrain) return 0;
-        
-        // Find the height of terrain at the given x,z position
-        // This is an example implementation - replace with actual terrain height lookup
-        // based on your terrain implementation
-        
-        // For a simple implementation, we can check for nearby hills in the scene
-        // and calculate their contribution to the height at this point
-        let height = 0;
-        
-        // Example: loop through all hills in the terrain
-        if (terrain.hills && terrain.hills.length > 0) {
-            for (const hill of terrain.hills) {
-                // Calculate distance from point to hill center (x-z plane)
-                const dx = x - hill.position.x;
-                const dz = z - hill.position.z;
-                const distanceSquared = dx * dx + dz * dz;
-                
-                // Hill contribution based on distance and hill height
-                // Using a simple radial falloff
-                if (distanceSquared < hill.radius * hill.radius) {
-                    // Inside hill radius
-                    const distance = Math.sqrt(distanceSquared);
-                    const falloff = 1 - (distance / hill.radius);
-                    
-                    // Add this hill's height contribution
-                    height += hill.height * falloff;
-                }
-            }
-        }
-        
-        return height;
+        return typeof terrain?.getHeightAt === 'function' ? terrain.getHeightAt(x, z) : 0;
     }
 }
 
