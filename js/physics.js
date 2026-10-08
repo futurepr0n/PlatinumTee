@@ -19,6 +19,7 @@ const DEFAULT_VERTICAL_POWER_OFFSET = 0.12;
 // New Constants for Magic Numbers
 const BALL_RADIUS = 0.1; // Derived from ballGeometry in main.js
 const WIND_EFFECT_MULTIPLIER = 0.0002;
+const AIRBORNE_EPSILON = 0.02;
 const PUTTER_ROTATION_SPEED = 0.2;
 const DEFAULT_ROTATION_SPEED = 0.5;
 const HOLE_RADIUS = 0.1875;
@@ -166,12 +167,14 @@ class BallPhysics {
         this.velocity.y *= AIR_RESISTANCE;
         this.velocity.z *= AIR_RESISTANCE;
 
-        // Apply wind effect
-        const windRadians = this.wind.direction * (Math.PI / 180);
-        const windEffect = this.wind.speed * WIND_EFFECT_MULTIPLIER;
-        
-        this.velocity.x += Math.sin(windRadians) * windEffect;
-        this.velocity.z += -Math.cos(windRadians) * windEffect;
+        const groundHeight = this.getTerrainHeightAt(ball.position.x, ball.position.z, terrain);
+        const isAirborne = ball.position.y > groundHeight + BALL_RADIUS + AIRBORNE_EPSILON;
+        if (isAirborne && this.club.name !== 'putter') {
+            const windRadians = this.wind.direction * (Math.PI / 180);
+            const windEffect = this.wind.speed * WIND_EFFECT_MULTIPLIER;
+            this.velocity.x += Math.sin(windRadians) * windEffect;
+            this.velocity.z += -Math.cos(windRadians) * windEffect;
+        }
 
         // Update ball position
         ball.position.x += this.velocity.x;
