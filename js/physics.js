@@ -40,6 +40,11 @@ const CLUB_HEIGHT_BOUNCE_MULTIPLIER = 0.3;
 const POWER_BOUNCE_MULTIPLIER = 0.1;
 
 const PUTTER_GROUND_FRICTION = 0.94;
+const SURFACES = Object.freeze({
+    fairway: { friction: GROUND_FRICTION, bounce: 1 },
+    green: { friction: 0.9, bounce: 0.6 },
+    bunker: { friction: 0.45, bounce: 0.25 }
+});
 
 const PUTTER_SPEED_THRESHOLD = 0.002;
 const DEFAULT_SPEED_THRESHOLD = 0.02;
@@ -251,12 +256,14 @@ class BallPhysics {
             
             // Bounce with friction - more realistic bounce physics
             // Reduced bounce for putting or when using less lofted clubs
+            const surface = SURFACES[terrain?.getSurfaceAt?.(ball.position.x, ball.position.z)] ?? SURFACES.fairway;
             let bounceFactor;
             if (this.club.name === 'putter') {
                 bounceFactor = PUTTER_BOUNCE_FACTOR; // Even less bounce for putting
             } else {
                 // More lofted clubs and higher power give more bounce
                 bounceFactor = DEFAULT_BOUNCE_BASE + (this.club.height * CLUB_HEIGHT_BOUNCE_MULTIPLIER) + (this.power * POWER_BOUNCE_MULTIPLIER);
+                bounceFactor *= surface.bounce;
             }
             
             // Bounce effect
@@ -267,7 +274,7 @@ class BallPhysics {
             if (this.club.name === 'putter') {
                 frictionFactor = PUTTER_GROUND_FRICTION; // Less friction for putts to roll longer
             } else {
-                frictionFactor = GROUND_FRICTION;
+                frictionFactor = surface.friction;
             }
             
             this.velocity.x *= frictionFactor;

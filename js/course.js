@@ -11,6 +11,8 @@ let ground = null;
 let hills = [];
 let trees = [];
 let bunkers = [];
+let bunkerZones = [];
+let greenZone = null;
 let water = [];
 
 // Hole elements
@@ -199,6 +201,8 @@ function createHole(holePosition, holePar, holeDistance) {
     const holeMaterial = new THREE.MeshStandardMaterial({ color: HOLE_COLOR });
     hole = new THREE.Mesh(holeGeometry, holeMaterial);
     
+    greenZone = { x: holePosition.x, z: holePosition.z, radius: GREEN_RADIUS };
+
     // Get terrain height at hole position
     const holeTerrainHeight = getTerrainHeightAt(holePosition.x, holePosition.z);
     
@@ -353,6 +357,7 @@ function createBunker(x, z, size) {
     scene.add(bunker);
     
     bunkers.push(bunker);
+    bunkerZones.push({ x, z, radius: size });
 }
 
 /**
@@ -371,6 +376,7 @@ function clearDecorativeElements() {
         scene.remove(bunker);
     });
     bunkers = [];
+    bunkerZones = [];
 }
 
 /**
@@ -497,8 +503,20 @@ function distancePointToLine(point, lineStart, lineEnd) {
 function getTerrainData() {
     return {
         hills,
-        getHeightAt: getTerrainHeightAt
+        getHeightAt: getTerrainHeightAt,
+        getSurfaceAt
     };
+}
+
+function getSurfaceAt(x, z) {
+    const inside = zone => (x - zone.x) ** 2 + (z - zone.z) ** 2 <= zone.radius ** 2;
+    if (bunkerZones.some(inside)) return 'bunker';
+    if (greenZone && inside(greenZone)) return 'green';
+    return 'fairway';
+}
+
+function getBunkerZones() {
+    return bunkerZones.map(zone => ({ ...zone }));
 }
 
 // Export the module functions
@@ -511,5 +529,7 @@ export {
     getTerrainHeightAt,
     hillHeightAt,
     getTerrainData,
+    getSurfaceAt,
+    getBunkerZones,
     HOLE_RADIUS_VISUAL
 };
