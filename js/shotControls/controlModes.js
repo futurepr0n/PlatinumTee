@@ -1,6 +1,7 @@
 const CONTROL_MODES = Object.freeze({
     CLASSIC: 'classic-meter',
-    TRACKBALL: 'trackball'
+    TRACKBALL: 'trackball',
+    REMOTE: 'remote-phone'
 });
 
 const CONTROL_MODE_ORDER = Object.freeze([

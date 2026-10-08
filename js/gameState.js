@@ -459,32 +459,26 @@ function completeHole() {
     });
 }
 
+function setupAimingFromBall() {
+    state.direction = 0;
+
+    if (state.directionArrow) {
+        state.directionArrow.position.set(state.ball.position.x, 0.3, state.ball.position.z);
+        state.directionArrow.visible = true;
+    }
+
+    autoSelectClub();
+    updateDirectionArrow();
+    updateShotSetupCamera();
+    setGameState(GameState.AIMING);
+}
+
 /**
  * Prepare for the next shot
  */
 function prepareForNextShot() {
-    // Reset direction
-    state.direction = 0;
-    
-    // Make direction arrow visible again
-    if (state.directionArrow) {
-        // Position the arrow at the ball
-        state.directionArrow.position.set(state.ball.position.x, 0.3, state.ball.position.z);
-        state.directionArrow.visible = true;
-    }
-    
-    // Auto-select appropriate club based on distance
-    autoSelectClub();
-    
-    // Update direction arrow
-    updateDirectionArrow();
-    
-    updateShotSetupCamera();
-    
-    // Set game state back to aiming
-    setGameState(GameState.AIMING);
-    
-    // Emit shot complete event
+    setupAimingFromBall();
+
     const distanceToHole = Math.sqrt(
         Math.pow(state.ball.position.x - state.holeData.position.x, 2) +
         Math.pow(state.ball.position.z - state.holeData.position.z, 2)
@@ -494,6 +488,26 @@ function prepareForNextShot() {
         strokes: state.strokes,
         fullState: getFullState()
     });
+}
+
+function getBallSnapshot() {
+    return {
+        x: state.ball.position.x,
+        y: state.ball.position.y,
+        z: state.ball.position.z,
+        strokes: state.strokes,
+        holed: state.gameState === GameState.COMPLETE
+    };
+}
+
+function loadBallSnapshot({ x, y, z, strokes }) {
+    if (state.gameState === GameState.IN_FLIGHT) return false;
+
+    state.ball.position.set(x, y, z);
+    state.ball.rotation.set(0, 0, 0);
+    state.strokes = strokes;
+    setupAimingFromBall();
+    return true;
 }
 
 /**
@@ -682,5 +696,7 @@ export {
     takeShotFromIntent,
     setControlMode,
     getControlMode,
-    getShotInfo
+    getShotInfo,
+    getBallSnapshot,
+    loadBallSnapshot
 };
