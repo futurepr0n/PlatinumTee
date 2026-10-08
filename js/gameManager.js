@@ -7,6 +7,7 @@ import * as Camera from './camera.js';
 import * as UI from '../ui.js';
 import * as Controls from './controls.js';
 import { getClub } from './clubs.js';
+import { MAX_STROKES_PER_HOLE } from './rules.js';
 import { followShadowLight } from './lighting.js';
 import { eventBus } from './events.js';
 import { HostSession } from './net/HostSession.js';
@@ -84,7 +85,9 @@ export class GameManager {
         });
 
         eventBus.on('outOfBounds', (data) => {
-            UI.showTemporaryMessage(`Out of bounds! Penalty stroke — now playing ${data.strokes + 1}.`);
+            if (data.strokes < MAX_STROKES_PER_HOLE) {
+                UI.showTemporaryMessage(`Out of bounds! Penalty stroke — now playing ${data.strokes + 1}.`);
+            }
         });
 
         eventBus.on('holeDataUpdated', (data) => {
@@ -144,6 +147,7 @@ export class GameManager {
                 UI.resultsPanel.hide();
                 GameState.resetGame();
                 this.generateNewHole();
+                UI.scorecard.updateScoreCard(GameState.getScoreCard(), GameState.getTotalHoles());
                 return;
             }
             if (GameState.isRoundComplete()) {
@@ -181,13 +185,13 @@ export class GameManager {
             
             const gameState = data?.gameState || GameState.getGameState();
 
-            if (gameState === GameState.AIMING) {
+            if (gameState === GameState.GameState.AIMING) {
                 GameState.startPowerMeter();
-            } else if (gameState === GameState.POWER) {
+            } else if (gameState === GameState.GameState.POWER) {
                 eventBus.emit('powerButtonClicked');
-            } else if (gameState === GameState.ACCURACY) {
+            } else if (gameState === GameState.GameState.ACCURACY) {
                 eventBus.emit('accuracyButtonClicked');
-            } else if (gameState === GameState.COMPLETE) {
+            } else if (gameState === GameState.GameState.COMPLETE) {
                 eventBus.emit('nextHoleButtonClicked');
             }
         });
@@ -246,7 +250,7 @@ export class GameManager {
             strokes,
             relativeToPar
         );
-        UI.scorecard.updateScoreCard(scoreCard);
+        UI.scorecard.updateScoreCard(scoreCard, GameState.getTotalHoles());
     }
 
 

@@ -56,7 +56,7 @@ export class Scorecard {
         this.totalParEl.textContent = totalToPar > 0 ? "+" + totalToPar : totalToPar;
 
         // Update next hole button text for last hole
-        if (scoreCard.length >= totalHoles) { // Magic number: totalHoles from GameState
+        if (scoreCard.length >= totalHoles) {
             this.nextHoleBtn.textContent = 'FINISH ROUND';
         } else {
             this.nextHoleBtn.textContent = 'NEXT HOLE';

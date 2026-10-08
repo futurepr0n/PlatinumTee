@@ -706,6 +706,10 @@ function isRoundComplete() {
     return state.currentHole === state.totalHoles && state.gameState === GameState.COMPLETE;
 }
 
+function getTotalHoles() {
+    return state.totalHoles;
+}
+
 function getShotInfo() {
     return { ...state.shotInfo };
 }
@@ -736,6 +740,7 @@ export {
     setControlMode,
     getControlMode,
     getShotInfo,
+    getTotalHoles,
     getBallSnapshot,
     loadBallSnapshot
 };

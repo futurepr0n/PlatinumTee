@@ -30,7 +30,7 @@ test('keyboard advance emits the game manager button simulation event', async ()
     assert.doesNotMatch(controlsSource, /simulateButtonPressRequested/);
     assert.match(controlsSource, /eventBus\.emit\('simulateSpecificButtonPressRequested'\)/);
     assert.match(gameManagerSource, /eventBus\.on\('simulateSpecificButtonPressRequested'/);
-    assert.match(gameManagerSource, /if \(gameState === GameState\.AIMING\) \{[\s\S]*GameState\.startPowerMeter\(\);/);
+    assert.match(gameManagerSource, /if \(gameState === GameState\.GameState\.AIMING\) \{[\s\S]*GameState\.startPowerMeter\(\);/);
     assert.doesNotMatch(gameManagerSource, /eventBus\.emit\('swingButtonClicked'\)/);
 });
 
