@@ -7,20 +7,26 @@ export class ResultsPanel {
         this.shotInfoEl = document.getElementById(shotInfoElId);
     }
     displayResults(resultText, shotInfo, distanceYards, strokes, relativeToPar) {
-        if (this.resultTextEl && this.shotInfoEl && this.resultsEl) {
-            this.resultTextEl.textContent = resultText;
+        if (!this.resultTextEl || !this.shotInfoEl || !this.resultsEl) return;
 
-            this.shotInfoEl.innerHTML = `
-                <p>Club: ${shotInfo.club}</p>
-                <p>Power: ${shotInfo.power}</p>
-                <p>Accuracy: ${shotInfo.accuracy}</p>
-                <p>Direction: ${shotInfo.direction}°</p>
-                <p>Distance: ${distanceYards} yards</p>
-                <p>Strokes: ${strokes}</p>
-                <p>To Par: ${relativeToPar > 0 ? "+" : ""}${relativeToPar}</p>
-            `;
-            this.resultsEl.style.display = 'block';
-        }
+        this.resultTextEl.textContent = resultText;
+        const lines = [
+            `Club: ${shotInfo.club}`,
+            `Shape: ${shotInfo.shape ?? 'Straight'}`,
+            `Power: ${shotInfo.power}`,
+            `Accuracy: ${shotInfo.accuracy}`,
+            `Direction: ${shotInfo.direction}°`,
+            `Distance: ${distanceYards} yards`,
+            ...(shotInfo.wind ? [`Wind: ${shotInfo.wind.speed} mph`] : []),
+            `Strokes: ${strokes}`,
+            `To Par: ${relativeToPar > 0 ? '+' : ''}${relativeToPar}`
+        ];
+        this.shotInfoEl.replaceChildren(...lines.map(text => {
+            const line = document.createElement('p');
+            line.textContent = text;
+            return line;
+        }));
+        this.resultsEl.style.display = 'block';
     }
 
     displayRoundSummary(summaryText) {

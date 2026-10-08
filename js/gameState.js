@@ -10,6 +10,7 @@ import logger from './utils/logger.js'; // Import logger
 import { createClassicShotIntent, normalizeShotIntent } from './shotControls/ShotIntent.js';
 import { CONTROL_MODES } from './shotControls/controlModes.js';
 import { rollHoleWind, gustWind } from './wind.js';
+import { describeShotShape, backspinForClub } from './shotShape.js';
 
 // Game state enum
 const GameState = {
@@ -329,7 +330,8 @@ function takeShot(intentData) {
         direction: finalDirection.toFixed(2),
         club: state.currentClub,
         controlMode: intent.source,
-        wind: shotWind
+        wind: shotWind,
+        shape: describeShotShape(intent.curve)
     };
     
     state.shotOrigin = {
@@ -360,7 +362,8 @@ function takeShot(intentData) {
         state.power,
         club,
         shotWind,
-        state.holeData.position // Pass hole position for better collision detection
+        state.holeData.position, // Pass hole position for better collision detection
+        { side: intent.curve, back: backspinForClub(club, intent.spin) }
     );
     
     // DEBUG: Log shot parameters
