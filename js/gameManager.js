@@ -7,21 +7,35 @@ import * as Camera from './camera.js';
 import * as UI from '../ui.js';
 import * as Controls from './controls.js';
 import { getClub } from './clubs.js';
+import { MAX_STROKES_PER_HOLE } from './rules.js';
+import { followShadowLight } from './lighting.js';
 import { eventBus } from './events.js';
 import { HostSession } from './net/HostSession.js';
 import { LobbyPanel } from './ui/LobbyPanel.js';
 import logger from './utils/logger.js'; // Import logger
 
 export class GameManager {
-    constructor(scene, camera, renderer, ball, directionArrow) {
+    constructor(scene, camera, renderer, ball, directionArrow, shadowLight = null) {
         this.scene = scene;
         this.camera = camera;
         this.renderer = renderer;
         this.ball = ball;
         this.directionArrow = directionArrow;
+        this.shadowLight = shadowLight;
 
         this.animationFrame = null;
         this.hostSession = null;
+        this.roundSummaryShown = false;
+    }
+
+    showRoundSummary() {
+        const scoreCard = GameState.getScoreCard();
+        const strokes = scoreCard.reduce((sum, hole) => sum + hole.strokes, 0);
+        const toPar = scoreCard.reduce((sum, hole) => sum + hole.toPar, 0);
+        const toParText = toPar === 0 ? 'E' : toPar > 0 ? `+${toPar}` : String(toPar);
+
+        UI.resultsPanel.displayRoundSummary(`Round complete! ${strokes} strokes (${toParText})`);
+        this.roundSummaryShown = true;
     }
 
     start() {
@@ -63,6 +77,17 @@ export class GameManager {
         eventBus.on('gameStateChanged', (data) => {
             this.handleStateChange(data.oldState, data.newState);
             UI.updateUI(data.fullState);
+        });
+
+        eventBus.on('ballMoved', ({ distanceToHole }) => {
+            const distanceYards = Math.round(distanceToHole / Physics.YARDS_TO_UNITS);
+            UI.gameInfo.updateStatusText(`Distance to hole: ${distanceYards} yards`);
+        });
+
+        eventBus.on('outOfBounds', (data) => {
+            if (data.strokes < MAX_STROKES_PER_HOLE) {
+                UI.showTemporaryMessage(`Out of bounds! Penalty stroke — now playing ${data.strokes + 1}.`);
+            }
         });
 
         eventBus.on('holeDataUpdated', (data) => {
@@ -117,6 +142,18 @@ export class GameManager {
 
         eventBus.on('nextHoleButtonClicked', () => {
             if (!acceptsLocalInput()) return;
+            if (this.roundSummaryShown) {
+                this.roundSummaryShown = false;
+                UI.resultsPanel.hide();
+                GameState.resetGame();
+                this.generateNewHole();
+                UI.scorecard.updateScoreCard(GameState.getScoreCard(), GameState.getTotalHoles());
+                return;
+            }
+            if (GameState.isRoundComplete()) {
+                this.showRoundSummary();
+                return;
+            }
             if (GameState.nextHole()) {
                 this.generateNewHole();
             }
@@ -148,19 +185,20 @@ export class GameManager {
             
             const gameState = data?.gameState || GameState.getGameState();
 
-            if (gameState === GameState.AIMING) {
+            if (gameState === GameState.GameState.AIMING) {
                 GameState.startPowerMeter();
-            } else if (gameState === GameState.POWER) {
+            } else if (gameState === GameState.GameState.POWER) {
                 eventBus.emit('powerButtonClicked');
-            } else if (gameState === GameState.ACCURACY) {
+            } else if (gameState === GameState.GameState.ACCURACY) {
                 eventBus.emit('accuracyButtonClicked');
-            } else if (gameState === GameState.COMPLETE) {
+            } else if (gameState === GameState.GameState.COMPLETE) {
                 eventBus.emit('nextHoleButtonClicked');
             }
         });
     }
 
     handleStateChange(oldState, newState) {
+        if (oldState === newState) return;
         logger.info(`Game state changed from ${oldState} to ${newState}`);
     }
 
@@ -203,12 +241,8 @@ export class GameManager {
 
     handleHoleComplete(scoreName, shotInfo, strokes, relativeToPar, scoreCard) {
         if (this.hostSession) return;
-        const shotDistance = Math.sqrt(
-            Math.pow(this.ball.position.x, 2) +
-            Math.pow(this.ball.position.z, 2)
-        );
-        const distanceYards = Math.round(shotDistance / Physics.YARDS_TO_UNITS);
-        
+        const distanceYards = shotInfo.distanceYards ?? 0;
+
         UI.resultsPanel.displayResults(
             `${scoreName}! (${strokes} strokes)`,
             shotInfo,
@@ -216,7 +250,7 @@ export class GameManager {
             strokes,
             relativeToPar
         );
-        UI.scorecard.updateScoreCard(scoreCard);
+        UI.scorecard.updateScoreCard(scoreCard, GameState.getTotalHoles());
     }
 
 
@@ -234,6 +268,7 @@ export class GameManager {
             GameState.updateBallPhysics();
         }
         
+        followShadowLight(this.shadowLight, this.ball.position);
         this.renderer.render(this.scene, this.camera);
     }
 

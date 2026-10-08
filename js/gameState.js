@@ -1,7 +1,8 @@
 // gameState.js - Manages game state, scoring, and progression
 
 import { getTerrainData } from './course.js';
-import { BallPhysics } from './physics.js';
+import { BallPhysics, YARDS_TO_UNITS } from './physics.js';
+import { isOutOfBounds, MAX_STROKES_PER_HOLE } from './rules.js';
 import { getClub, recommendClub } from './clubs.js';
 import * as Camera from './camera.js';
 import { eventBus } from './events.js'; // Import eventBus
@@ -20,12 +21,15 @@ const GameState = {
     COMPLETE: 'complete'
 };
 
+const TEE_BALL_POSITION = Object.freeze({ x: 0, y: 0.1, z: 0 });
+
 // Centralized game state object
 let state = {
     gameState: GameState.INITIALIZING,
     direction: 0,
     power: 0,
     accuracy: 0,
+    shotOrigin: null,
     shotInfo: { power: 0, accuracy: 0, direction: 0, club: '', controlMode: CONTROL_MODES.CLASSIC },
     currentControlMode: CONTROL_MODES.CLASSIC,
     currentHole: 1,
@@ -319,6 +323,12 @@ function takeShot(intentData) {
         controlMode: intent.source
     };
     
+    state.shotOrigin = {
+        x: state.ball.position.x,
+        y: state.ball.position.y,
+        z: state.ball.position.z
+    };
+
     // Update game state
     setGameState(GameState.IN_FLIGHT);
     
@@ -380,8 +390,9 @@ function updateBallPhysics() {
     // Update camera to follow ball
     Camera.updateCamera(state.ball.position);
     
-    // Update UI information with current distance
-    updateInfo();
+    if (isStillMoving) {
+        eventBus.emit('ballMoved', { distanceToHole: getDistanceToHole() });
+    }
     
     return isStillMoving;
 }
@@ -390,36 +401,54 @@ function updateBallPhysics() {
  * Evaluate the shot result
  */
 function evaluateShot() {
-    // Change game state
     setGameState(GameState.EVALUATING);
-    
-    // Calculate distance to hole
+    recordShotDistance();
+
     const distanceToHole = Math.sqrt(
         Math.pow(state.ball.position.x - state.holeData.position.x, 2) +
         Math.pow(state.ball.position.z - state.holeData.position.z, 2)
     );
-    
-    // Check if ball is in hole - either via physics detection or position check
+
     if (state.ballPhysics.inHole || distanceToHole < 0.15) {
-        // Ball in hole - ensure proper positioning for visual effect
         state.ball.position.x = state.holeData.position.x;
         state.ball.position.z = state.holeData.position.z;
-        state.ball.position.y = state.holeData.position.y - 0.05; // Slightly below hole level
-        
+        state.ball.position.y = state.holeData.position.y - 0.05;
+
         logger.info("HOLE COMPLETE! Ball is in the hole.");
-        
-        // Complete the hole
         completeHole();
-    } else {
-        // Ball is not in hole - set up for next shot
-        prepareForNextShot();
+        return;
     }
+
+    if (isOutOfBounds(state.ball.position) && state.shotOrigin) {
+        state.strokes++;
+        state.ball.position.set(state.shotOrigin.x, state.shotOrigin.y, state.shotOrigin.z);
+        eventBus.emit('outOfBounds', { strokes: state.strokes, fullState: getFullState() });
+    }
+
+    if (state.strokes >= MAX_STROKES_PER_HOLE) {
+        state.strokes = MAX_STROKES_PER_HOLE;
+        completeHole({ pickedUp: true });
+        return;
+    }
+
+    prepareForNextShot();
+}
+
+function recordShotDistance() {
+    if (!state.shotOrigin) return;
+
+    const dx = state.ball.position.x - state.shotOrigin.x;
+    const dz = state.ball.position.z - state.shotOrigin.z;
+    state.shotInfo = {
+        ...state.shotInfo,
+        distanceYards: Math.round(Math.sqrt(dx * dx + dz * dz) / YARDS_TO_UNITS)
+    };
 }
 
 /**
  * Complete the current hole
  */
-function completeHole() {
+function completeHole({ pickedUp = false } = {}) {
     // Calculate score relative to par
     const relativeToPar = state.strokes - state.holeData.par;
     
@@ -440,17 +469,19 @@ function completeHole() {
     
     // Determine score name
     let scoreName;
-    if (relativeToPar === -3) scoreName = "Albatross";
+    if (pickedUp) scoreName = "Picked up";
+    else if (relativeToPar <= -3) scoreName = "Albatross";
     else if (relativeToPar === -2) scoreName = "Eagle";
     else if (relativeToPar === -1) scoreName = "Birdie";
     else if (relativeToPar === 0) scoreName = "Par";
     else if (relativeToPar === 1) scoreName = "Bogey";
     else if (relativeToPar === 2) scoreName = "Double Bogey";
-    else if (relativeToPar >= 3) scoreName = "Triple+ Bogey";
+    else scoreName = "Triple+ Bogey";
     
     // Emit hole complete event
     eventBus.emit('holeComplete', {
         scoreName,
+        pickedUp,
         strokes: state.strokes,
         relativeToPar,
         shotInfo: { ...state.shotInfo },
@@ -526,7 +557,7 @@ function nextHole() {
     
     // Reset ball position
     if (state.ball) {
-        state.ball.position.set(0, 0.2, 0);
+        state.ball.position.set(TEE_BALL_POSITION.x, TEE_BALL_POSITION.y, TEE_BALL_POSITION.z);
         state.ball.rotation.set(0, 0, 0);
     }
     
@@ -612,10 +643,12 @@ function resetGame() {
     
     // Clear score card
     state.scoreCard = [];
+    state.strokes = 0;
+    state.shotOrigin = null;
     
     // Reset ball position
     if (state.ball) {
-        state.ball.position.set(0, 0.2, 0);
+        state.ball.position.set(TEE_BALL_POSITION.x, TEE_BALL_POSITION.y, TEE_BALL_POSITION.z);
         state.ball.rotation.set(0, 0, 0);
     }
     
@@ -669,6 +702,14 @@ function getControlMode() {
     return state.currentControlMode;
 }
 
+function isRoundComplete() {
+    return state.currentHole === state.totalHoles && state.gameState === GameState.COMPLETE;
+}
+
+function getTotalHoles() {
+    return state.totalHoles;
+}
+
 function getShotInfo() {
     return { ...state.shotInfo };
 }
@@ -676,6 +717,8 @@ function getShotInfo() {
 // Export the module functions
 export {
     GameState,
+    TEE_BALL_POSITION,
+    isRoundComplete,
     initGameState,
     setGameState,
     getGameState,
@@ -697,6 +740,7 @@ export {
     setControlMode,
     getControlMode,
     getShotInfo,
+    getTotalHoles,
     getBallSnapshot,
     loadBallSnapshot
 };

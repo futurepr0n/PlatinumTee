@@ -23,10 +23,10 @@ export class TrackballControl {
         this.spinVelocity = new THREE.Vector2();
         this.heft = 0;
         this.lastFrameTime = performance.now();
+        this.animationFrame = null;
 
         this.initScene();
         this.setupPointerEvents();
-        this.animate();
     }
 
     initScene() {
@@ -246,11 +246,23 @@ export class TrackballControl {
     }
 
     animate() {
-        requestAnimationFrame(() => this.animate());
+        this.animationFrame = requestAnimationFrame(() => this.animate());
         this.updateVisualPhysics();
         if (this.renderer && this.scene && this.camera) {
             this.renderer.render(this.scene, this.camera);
         }
+    }
+
+    startLoop() {
+        if (this.animationFrame !== null) return;
+        this.lastFrameTime = performance.now();
+        this.animate();
+    }
+
+    stopLoop() {
+        if (this.animationFrame === null) return;
+        cancelAnimationFrame(this.animationFrame);
+        this.animationFrame = null;
     }
 
     updateVisualPhysics() {
@@ -278,10 +290,12 @@ export class TrackballControl {
 
     show() {
         if (this.container) this.container.style.display = 'block';
+        this.startLoop();
     }
 
     hide() {
         if (this.container) this.container.style.display = 'none';
+        this.stopLoop();
         this.reset();
     }
 }

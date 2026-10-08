@@ -19,6 +19,7 @@ const DEFAULT_VERTICAL_POWER_OFFSET = 0.12;
 // New Constants for Magic Numbers
 const BALL_RADIUS = 0.1; // Derived from ballGeometry in main.js
 const WIND_EFFECT_MULTIPLIER = 0.0002;
+const AIRBORNE_EPSILON = 0.02;
 const PUTTER_ROTATION_SPEED = 0.2;
 const DEFAULT_ROTATION_SPEED = 0.5;
 const HOLE_RADIUS = 0.1875;
@@ -166,12 +167,14 @@ class BallPhysics {
         this.velocity.y *= AIR_RESISTANCE;
         this.velocity.z *= AIR_RESISTANCE;
 
-        // Apply wind effect
-        const windRadians = this.wind.direction * (Math.PI / 180);
-        const windEffect = this.wind.speed * WIND_EFFECT_MULTIPLIER;
-        
-        this.velocity.x += Math.sin(windRadians) * windEffect;
-        this.velocity.z += -Math.cos(windRadians) * windEffect;
+        const groundHeight = this.getTerrainHeightAt(ball.position.x, ball.position.z, terrain);
+        const isAirborne = ball.position.y > groundHeight + BALL_RADIUS + AIRBORNE_EPSILON;
+        if (isAirborne && this.club.name !== 'putter') {
+            const windRadians = this.wind.direction * (Math.PI / 180);
+            const windEffect = this.wind.speed * WIND_EFFECT_MULTIPLIER;
+            this.velocity.x += Math.sin(windRadians) * windEffect;
+            this.velocity.z += -Math.cos(windRadians) * windEffect;
+        }
 
         // Update ball position
         ball.position.x += this.velocity.x;
@@ -270,39 +273,7 @@ class BallPhysics {
     }
 
     getTerrainHeightAt(x, z, terrain) {
-        // If there's no terrain, just use ground level (0)
-        if (!terrain) return 0;
-        
-        // Find the height of terrain at the given x,z position
-        // This is an example implementation - replace with actual terrain height lookup
-        // based on your terrain implementation
-        
-        // For a simple implementation, we can check for nearby hills in the scene
-        // and calculate their contribution to the height at this point
-        let height = 0;
-        
-        // Example: loop through all hills in the terrain
-        if (terrain.hills && terrain.hills.length > 0) {
-            for (const hill of terrain.hills) {
-                // Calculate distance from point to hill center (x-z plane)
-                const dx = x - hill.position.x;
-                const dz = z - hill.position.z;
-                const distanceSquared = dx * dx + dz * dz;
-                
-                // Hill contribution based on distance and hill height
-                // Using a simple radial falloff
-                if (distanceSquared < hill.radius * hill.radius) {
-                    // Inside hill radius
-                    const distance = Math.sqrt(distanceSquared);
-                    const falloff = 1 - (distance / hill.radius);
-                    
-                    // Add this hill's height contribution
-                    height += hill.height * falloff;
-                }
-            }
-        }
-        
-        return height;
+        return typeof terrain?.getHeightAt === 'function' ? terrain.getHeightAt(x, z) : 0;
     }
 }
 

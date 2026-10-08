@@ -4,6 +4,7 @@ import * as THREE from 'three';
 // Conversion constants (from physics.js)
 import { YARDS_TO_UNITS } from './physics.js';
 import logger from './utils/logger.js'; // Import logger
+import { disposeObject } from './utils/dispose.js';
 
 // Course elements collections
 let ground = null;
@@ -37,7 +38,6 @@ const HILL_X_SPREAD = 100;
 const HILL_Y_POSITION = -5;
 const HILL_Z_SPREAD = 500;
 const HILL_Z_OFFSET = 50;
-const HILL_INITIAL_HEIGHT_MULTIPLIER = 6; // Implicit factor for hill height before scale.y
 
 // Hole
 const HOLE_RADIUS_VISUAL = 0.1875; // Slightly larger arcade cup for clearer capture
@@ -171,7 +171,7 @@ function createTerrain() {
                 z: hill.position.z 
             },
             radius: HILL_RADIUS,
-            height: HILL_INITIAL_HEIGHT_MULTIPLIER * hill.scale.y // max height of the hill
+            scaleY: hill.scale.y
         };
         
         hills.push(hillData);
@@ -192,10 +192,7 @@ function createHole(holePosition, holePar, holeDistance) {
     }
     
     // Clear any existing hole elements
-    if (hole) scene.remove(hole);
-    if (flagpole) scene.remove(flagpole);
-    if (flag) scene.remove(flag);
-    if (green) scene.remove(green);
+    [hole, flagpole, flag, green].forEach(object => disposeObject(scene, object));
     
     // Create the actual hole (black cylinder)
     const holeGeometry = new THREE.CylinderGeometry(HOLE_RADIUS_VISUAL, HOLE_RADIUS_VISUAL, HOLE_HEIGHT_VISUAL, 32); // Smaller hole for smaller ball
@@ -297,6 +294,22 @@ function addDecorativeElements(holePosition) {
     }
 }
 
+let sharedDecor = null;
+
+function getSharedDecor() {
+    if (!sharedDecor) {
+        sharedDecor = {
+            trunkGeometry: new THREE.CylinderGeometry(TRUNK_RADIUS, TRUNK_RADIUS, TRUNK_HEIGHT, TRUNK_SEGMENTS),
+            trunkMaterial: new THREE.MeshStandardMaterial({ color: TRUNK_COLOR }),
+            foliageGeometry: new THREE.ConeGeometry(FOLIAGE_RADIUS, FOLIAGE_HEIGHT, FOLIAGE_SEGMENTS),
+            foliageMaterial: new THREE.MeshStandardMaterial({ color: FOLIAGE_COLOR }),
+            bunkerGeometry: new THREE.CircleGeometry(1, 32),
+            bunkerMaterial: new THREE.MeshStandardMaterial({ color: BUNKER_COLOR })
+        };
+    }
+    return sharedDecor;
+}
+
 /**
  * Creates a tree at the specified position
  * @param {number} x - X position
@@ -307,17 +320,14 @@ function createTree(x, z) {
     const terrainHeight = getTerrainHeightAt(x, z);
     
     // Create trunk
-    const trunkGeometry = new THREE.CylinderGeometry(TRUNK_RADIUS, TRUNK_RADIUS, TRUNK_HEIGHT, TRUNK_SEGMENTS);
-    const trunkMaterial = new THREE.MeshStandardMaterial({ color: TRUNK_COLOR });
-    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    const decor = getSharedDecor();
+    const trunk = new THREE.Mesh(decor.trunkGeometry, decor.trunkMaterial);
     trunk.position.set(x, terrainHeight + TRUNK_VERTICAL_OFFSET, z);
     trunk.castShadow = true;
     scene.add(trunk);
     
     // Create foliage
-    const foliageGeometry = new THREE.ConeGeometry(FOLIAGE_RADIUS, FOLIAGE_HEIGHT, FOLIAGE_SEGMENTS);
-    const foliageMaterial = new THREE.MeshStandardMaterial({ color: FOLIAGE_COLOR });
-    const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+    const foliage = new THREE.Mesh(decor.foliageGeometry, decor.foliageMaterial);
     foliage.position.set(x, terrainHeight + FOLIAGE_VERTICAL_OFFSET, z);
     foliage.castShadow = true;
     scene.add(foliage);
@@ -335,9 +345,9 @@ function createBunker(x, z, size) {
     // Get terrain height at bunker position
     const terrainHeight = getTerrainHeightAt(x, z);
     
-    const bunkerGeometry = new THREE.CircleGeometry(size, 32);
-    const bunkerMaterial = new THREE.MeshStandardMaterial({ color: BUNKER_COLOR });
-    const bunker = new THREE.Mesh(bunkerGeometry, bunkerMaterial);
+    const decor = getSharedDecor();
+    const bunker = new THREE.Mesh(decor.bunkerGeometry, decor.bunkerMaterial);
+    bunker.scale.set(size, size, 1);
     bunker.rotation.x = -Math.PI / 2;
     bunker.position.set(x, terrainHeight + BUNKER_VERTICAL_OFFSET, z);
     scene.add(bunker);
@@ -371,13 +381,7 @@ function clearCourse() {
     clearDecorativeElements();
     
     // Clear hole elements
-    if (hole) scene.remove(hole);
-    if (flagpole) scene.remove(flagpole);
-    if (flag) scene.remove(flag);
-    if (green) scene.remove(green);
-    
-    // Clear ground
-    if (ground) scene.remove(ground);
+    [hole, flagpole, flag, green, ground].forEach(object => disposeObject(scene, object));
     
     hole = null;
     flagpole = null;
@@ -427,31 +431,29 @@ function generateNewHole() {
 }
 
 /**
+ * Height of one hill's visible surface at x,z (0 outside its footprint)
+ */
+function hillHeightAt(hill, x, z) {
+    const dx = x - hill.position.x;
+    const dz = z - hill.position.z;
+    const distanceSquared = dx * dx + dz * dz;
+    const radiusSquared = hill.radius * hill.radius;
+    if (distanceSquared >= radiusSquared) return 0;
+
+    return Math.max(0, hill.position.y + hill.scaleY * Math.sqrt(radiusSquared - distanceSquared));
+}
+
+/**
  * Get terrain height at a specific x,z position
  * @param {number} x - X position
  * @param {number} z - Z position
  * @returns {number} Height of terrain at position
  */
 function getTerrainHeightAt(x, z) {
-    // Base ground height
     let height = 0;
-    
-    // Check contribution from each hill
     for (const hill of hills) {
-        // Calculate distance from point to hill center (x-z plane)
-        const dx = x - hill.position.x;
-        const dz = z - hill.position.z;
-        const distanceSquared = dx * dx + dz * dz;
-        
-        // If within hill radius, add contribution to height
-        if (distanceSquared < hill.radius * hill.radius) {
-            const distance = Math.sqrt(distanceSquared);
-            // Smoother falloff using cosine function
-            const falloff = 0.5 + 0.5 * Math.cos(Math.PI * distance / hill.radius);
-            height += hill.height * falloff;
-        }
+        height = Math.max(height, hillHeightAt(hill, x, z));
     }
-    
     return height;
 }
 
@@ -507,6 +509,7 @@ export {
     generateNewHole,
     clearCourse,
     getTerrainHeightAt,
+    hillHeightAt,
     getTerrainData,
     HOLE_RADIUS_VISUAL
 };

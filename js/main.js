@@ -9,6 +9,7 @@ import { GameManager } from './gameManager.js';
 // Game objects for Three.js setup
 let scene, camera, renderer;
 let ball, directionArrow;
+let shadowLight;
 
 /**
  * Initialize the game
@@ -21,7 +22,7 @@ function init() {
     createGameObjects();
     
     // Initialize GameManager
-    const gameManager = new GameManager(scene, camera, renderer, ball, directionArrow);
+    const gameManager = new GameManager(scene, camera, renderer, ball, directionArrow, shadowLight);
     gameManager.start();
     
     // Setup window resize handler - now part of GameManager
@@ -84,7 +85,9 @@ function addLights() {
     directionalLight.shadow.camera.top = 25;
     directionalLight.shadow.camera.bottom = -25;
     
+    shadowLight = directionalLight;
     scene.add(directionalLight);
+    scene.add(directionalLight.target);
 }
 
 /**

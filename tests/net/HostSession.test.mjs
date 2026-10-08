@@ -14,7 +14,7 @@ function fakeBus() {
 }
 
 function fakeGame() {
-    let snapshot = { x: 0, y: 0.2, z: 0, strokes: 0, holed: false };
+    let snapshot = { x: 0, y: 0.1, z: 0, strokes: 0, holed: false };
     return {
         calls: [],
         land(next) { snapshot = { ...snapshot, ...next }; },
