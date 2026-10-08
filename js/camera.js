@@ -82,6 +82,45 @@ function setAimingMode(ballPosition, direction) {
 }
 
 /**
+ * Set camera to a lower putting view that emphasizes the green and cup.
+ * @param {Object} ballPosition - {x, y, z} position of the ball
+ * @param {number} direction - Direction angle in degrees
+ * @param {Object} holePosition - {x, y, z} position of the hole
+ */
+function setPuttingMode(ballPosition, direction, holePosition) {
+    if (!camera || !ballPosition) return;
+
+    cameraState.mode = 'putting';
+    cameraState.target = { ...ballPosition };
+
+    const dirRadians = direction * (Math.PI / 180);
+    const distFromBall = 5.5;
+    const cameraX = ballPosition.x - Math.sin(dirRadians) * distFromBall;
+    const cameraZ = ballPosition.z + Math.cos(dirRadians) * distFromBall;
+
+    camera.position.set(cameraX, ballPosition.y + 1.25, cameraZ);
+
+    const lookDistance = holePosition ? Math.min(10, Math.max(4, Math.hypot(
+        holePosition.x - ballPosition.x,
+        holePosition.z - ballPosition.z
+    ))) : 7;
+    const lookAtX = ballPosition.x + Math.sin(dirRadians) * lookDistance;
+    const lookAtZ = ballPosition.z - Math.cos(dirRadians) * lookDistance;
+    camera.lookAt(lookAtX, ballPosition.y + 0.05, lookAtZ);
+
+    cameraState.currentLookAt = { x: lookAtX, y: ballPosition.y + 0.05, z: lookAtZ };
+}
+
+function setShotSetupMode(ballPosition, direction, clubName, holePosition) {
+    if (clubName === 'putter') {
+        setPuttingMode(ballPosition, direction, holePosition);
+        return;
+    }
+
+    setAimingMode(ballPosition, direction);
+}
+
+/**
  * Set camera to follow the ball in flight
  * @param {Object} ballPosition - Current position of the ball
  */
@@ -237,6 +276,8 @@ export {
     setHolePosition,
     setOverviewMode,
     setAimingMode,
+    setPuttingMode,
+    setShotSetupMode,
     setFollowMode,
     setResultMode,
     updateCamera,

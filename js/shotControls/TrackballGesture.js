@@ -2,11 +2,23 @@ import { clamp, clamp01, normalizeShotIntent } from './ShotIntent.js';
 
 const MIN_FLICK_DISTANCE = 24;
 const MIN_FORWARD_RATIO = 0.25;
-const MAX_POWER_DISTANCE = 260;
-const MAX_POWER_VELOCITY = 1.6;
-const MAX_SIDE_DRIFT = 160;
+const MIN_STRIKE_DISTANCE = 28;
+const MAX_POWER_DISTANCE = 170;
+const MAX_POWER_VELOCITY = 1.3;
+const MAX_ROLLBACK_DISTANCE = 95;
+const MAX_SIDE_DRIFT = 150;
+const SIDE_DEADZONE = 12;
+const POWER_CALIBRATION_MULTIPLIER = 2.25;
 
-function getGestureVector(points) {
+function applySideDeadzone(dx) {
+    const magnitude = Math.abs(dx);
+    if (magnitude <= SIDE_DEADZONE) return 0;
+
+    const adjusted = magnitude - SIDE_DEADZONE;
+    return Math.sign(dx) * adjusted;
+}
+
+function getForwardGestureVector(points) {
     const start = points[0];
     const end = points[points.length - 1];
     const dx = end.x - start.x;
@@ -17,6 +29,38 @@ function getGestureVector(points) {
     const velocity = distance / dt;
 
     return { dx, dy, dt, distance, forward, velocity };
+}
+
+function getRollbackApex(points) {
+    const start = points[0];
+    return points.reduce((apex, point, index) => {
+        const rollback = point.y - start.y;
+        return rollback > apex.rollback ? { point, index, rollback } : apex;
+    }, { point: start, index: 0, rollback: 0 });
+}
+
+function getStrikeVector(points) {
+    const { point: rollbackPoint, index: rollbackIndex, rollback } = getRollbackApex(points);
+    const end = points[points.length - 1];
+    const dx = end.x - rollbackPoint.x;
+    const dy = end.y - rollbackPoint.y;
+    const dt = Math.max(1, end.t - rollbackPoint.t);
+    const distance = Math.hypot(dx, dy);
+    const forward = Math.max(0, -dy);
+    const velocity = distance / dt;
+    const sideRatio = clamp(applySideDeadzone(dx) / (MAX_SIDE_DRIFT - SIDE_DEADZONE), -1, 1);
+
+    return {
+        dx,
+        dy,
+        dt,
+        distance,
+        forward,
+        velocity,
+        rollback: Math.max(0, rollback),
+        rollbackIndex,
+        sideRatio
+    };
 }
 
 function hasFiniteGesturePoints(points) {
@@ -36,19 +80,23 @@ function interpretTrackballGesture(points) {
         return { valid: false, reason: 'gesture-too-small' };
     }
 
-    const { dx, distance, forward, velocity } = getGestureVector(points);
-    const forwardRatio = forward / Math.max(distance, 1);
+    const strike = getStrikeVector(points);
+    const fallback = getForwardGestureVector(points);
+    const forwardRatio = strike.forward / Math.max(strike.distance, 1);
 
-    if (distance < MIN_FLICK_DISTANCE || forwardRatio < MIN_FORWARD_RATIO) {
+    if (fallback.distance < MIN_FLICK_DISTANCE || strike.distance < MIN_STRIKE_DISTANCE || forwardRatio < MIN_FORWARD_RATIO) {
         return { valid: false, reason: 'gesture-too-small' };
     }
 
-    const distancePower = distance / MAX_POWER_DISTANCE;
-    const velocityPower = velocity / MAX_POWER_VELOCITY;
-    const sideRatio = clamp(dx / MAX_SIDE_DRIFT, -1, 1);
+    const distancePower = strike.forward / MAX_POWER_DISTANCE;
+    const velocityPower = strike.velocity / MAX_POWER_VELOCITY;
+    const rollbackCharge = clamp01(strike.rollback / MAX_ROLLBACK_DISTANCE);
+    const sideRatio = strike.sideRatio;
     const directionOffset = clamp(sideRatio * 35, -35, 35);
-    const power = clamp01(distancePower * 0.65 + velocityPower * 0.35);
-    const accuracy = clamp01(1 - Math.abs(sideRatio) * 0.7);
+    const rawPower = distancePower * 0.5 + velocityPower * 0.25 + rollbackCharge * 0.25;
+    const power = clamp01(rawPower * POWER_CALIBRATION_MULTIPLIER);
+    const accuracy = 0.5;
+    const strikeQuality = clamp01(1 - Math.abs(sideRatio) * 0.7);
 
     return {
         valid: true,
@@ -57,14 +105,21 @@ function interpretTrackballGesture(points) {
             power,
             accuracy,
             curve: sideRatio,
-            spin: clamp(forward / MAX_POWER_DISTANCE, -1, 1),
+            spin: clamp(rollbackCharge * 0.65 + distancePower * 0.35, -1, 1),
             launchModifier: 1,
             source: 'trackball'
         }),
         metrics: {
-            distance,
-            forward,
-            velocity,
+            distance: fallback.distance,
+            forward: strike.forward,
+            velocity: strike.velocity,
+            rollback: strike.rollback,
+            rollbackCharge,
+            rawPower,
+            calibratedPower: power,
+            strikeDistance: strike.distance,
+            strikeQuality,
+            rollbackIndex: strike.rollbackIndex,
             sideRatio
         }
     };

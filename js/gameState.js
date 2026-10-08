@@ -134,6 +134,7 @@ function adjustDirection(amount) {
     
     // Update direction arrow
     updateDirectionArrow();
+    updateShotSetupCamera();
     
     eventBus.emit('directionUpdated', { direction: state.direction, fullState: getFullState() });
     
@@ -154,6 +155,7 @@ function setDirection(value) {
     
     // Update direction arrow
     updateDirectionArrow();
+    updateShotSetupCamera();
     
     eventBus.emit('directionUpdated', { direction: state.direction, fullState: getFullState() });
     
@@ -176,6 +178,17 @@ function updateDirectionArrow() {
     // Update arrow rotation
     state.directionArrow.rotation.x = Math.PI / 2; // Keep pointing forward
     state.directionArrow.rotation.z = finalDirection * (Math.PI / 180);
+}
+
+function updateShotSetupCamera() {
+    if (!state.ball) return;
+
+    Camera.setShotSetupMode(
+        state.ball.position,
+        calculateAngleToHole(),
+        state.currentClub,
+        state.holeData.position
+    );
 }
 
 /**
@@ -466,8 +479,7 @@ function prepareForNextShot() {
     // Update direction arrow
     updateDirectionArrow();
     
-    // Set camera to aiming mode
-    Camera.setAimingMode(state.ball.position, calculateAngleToHole());
+    updateShotSetupCamera();
     
     // Set game state back to aiming
     setGameState(GameState.AIMING);
@@ -548,6 +560,10 @@ function autoSelectClub() {
  */
 function setCurrentClub(clubName) {
     state.currentClub = clubName;
+
+    if (state.gameState === GameState.AIMING) {
+        updateShotSetupCamera();
+    }
     
     eventBus.emit('clubSelected', { clubName: state.currentClub, fullState: getFullState() });
     

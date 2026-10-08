@@ -4,24 +4,24 @@
 const YARDS_TO_UNITS = 0.5; // 1 game unit = 2 yards
 
 // Physics settings
-const GRAVITY = 0.015;
-const AIR_RESISTANCE = 0.99;
-const GROUND_FRICTION = 0.75;
+const GRAVITY = 0.011;
+const AIR_RESISTANCE = 0.994;
+const GROUND_FRICTION = 0.82;
 
 // Power Scaling Constants
-const POWER_SCALE_HORIZONTAL_MULTIPLIER = 0.8;
-const POWER_SCALE_HORIZONTAL_OFFSET = 0.1;
+const POWER_SCALE_HORIZONTAL_MULTIPLIER = 0.84;
+const POWER_SCALE_HORIZONTAL_OFFSET = 0.12;
 
 const PUTTER_VERTICAL_POWER = 0.001;
 const PUTTER_VERTICAL_POWER_MULTIPLIER = 0.02;
-const DEFAULT_VERTICAL_POWER_OFFSET = 0.1;
+const DEFAULT_VERTICAL_POWER_OFFSET = 0.12;
 
 // New Constants for Magic Numbers
 const BALL_RADIUS = 0.1; // Derived from ballGeometry in main.js
 const WIND_EFFECT_MULTIPLIER = 0.0002;
 const PUTTER_ROTATION_SPEED = 0.2;
 const DEFAULT_ROTATION_SPEED = 0.5;
-const HOLE_RADIUS = 0.15;
+const HOLE_RADIUS = 0.1875;
 const HOLE_RADIUS_SQUARED = HOLE_RADIUS * HOLE_RADIUS; // For faster distance checks
 const HOLE_ENTRY_SPEED_THRESHOLD = 0.1;
 const HOLE_VERTICAL_TOLERANCE = 0.2; // Ball Y position tolerance for hole entry
@@ -32,15 +32,15 @@ const DEFAULT_BOUNCE_BASE = 0.3;
 const CLUB_HEIGHT_BOUNCE_MULTIPLIER = 0.3;
 const POWER_BOUNCE_MULTIPLIER = 0.1;
 
-const PUTTER_GROUND_FRICTION = 0.8;
+const PUTTER_GROUND_FRICTION = 0.94;
 
-const PUTTER_SPEED_THRESHOLD = 0.005;
-const DEFAULT_SPEED_THRESHOLD = 0.03;
-const MAX_BOUNCE_COUNT = 20;
+const PUTTER_SPEED_THRESHOLD = 0.002;
+const DEFAULT_SPEED_THRESHOLD = 0.02;
+const MAX_BOUNCE_COUNT = 70;
 
-const PUTTER_MIN_POWER = 0.01;
-const PUTTER_POWER_MULTIPLIER = 0.15;
-const PUTTER_DISTANCE_POWER_DIVISOR = 120; // Reduced for smoother putts
+const PUTTER_MIN_POWER = 0.003;
+const PUTTER_POWER_MULTIPLIER = 0.26;
+const PUTTER_DISTANCE_POWER_DIVISOR = 260;
 
 // Terrain settings
 let terrainHeightMap = null;
@@ -125,14 +125,11 @@ class BallPhysics {
             // FIXED: Ensure power range is appropriate for putting
             const putterPower = Math.max(PUTTER_MIN_POWER, this.power * PUTTER_POWER_MULTIPLIER);
             
-            // Minimum power to ensure you can always reach the hole
-            const minPowerForDistance = distanceYards / PUTTER_DISTANCE_POWER_DIVISOR; // Reduced for smoother putts
+            // Gentle distance assist keeps very long putts possible without overriding touch.
+            const minPowerForDistance = (distanceYards / PUTTER_DISTANCE_POWER_DIVISOR) * this.power;
             
             // Use the greater of the two to ensure you can reach the hole
             const effectivePower = Math.max(putterPower, minPowerForDistance);
-            
-            // DEBUG
-            console.log(`Putter physics: power=${this.power}, effectivePower=${effectivePower}`);
             
             return { 
                 horizontal: effectivePower,
@@ -148,9 +145,14 @@ class BallPhysics {
     }
 
     calculateDistanceToHole() {
-        // This should be replaced with actual distance calculation
-        // based on ball position and hole position
-        return 100 * YARDS_TO_UNITS; // Placeholder
+        if (!this.holePosition || !this.initialPosition) {
+            return 100 * YARDS_TO_UNITS;
+        }
+
+        return Math.sqrt(
+            Math.pow(this.initialPosition.x - this.holePosition.x, 2) +
+            Math.pow(this.initialPosition.z - this.holePosition.z, 2)
+        );
     }
 
     update(ball, terrain) {
@@ -208,7 +210,6 @@ class BallPhysics {
                 // If ball is below hole level, shot is complete
                 if (ball.position.y < this.holePosition.y - IN_HOLE_DEPTH_THRESHOLD) {
                     this.isInFlight = false;
-                    console.log("HOLE IN! Ball has entered the hole!");
                     return false; // Shot complete
                 }
                 
@@ -256,11 +257,6 @@ class BallPhysics {
                 this.velocity.y * this.velocity.y +
                 this.velocity.z * this.velocity.z
             );
-            
-            // Debug output
-            if (this.club.name === 'putter' && this.bounceCount % 5 === 0) {
-                console.log(`Putt: speed=${speed.toFixed(4)}, bounces=${this.bounceCount}`);
-            }
             
             // Stop if the ball is moving very slowly or has bounced multiple times
             if (speed < speedThreshold || this.bounceCount > MAX_BOUNCE_COUNT) {
@@ -311,4 +307,4 @@ class BallPhysics {
 }
 
 // Export the necessary functions and classes
-export { BallPhysics, YARDS_TO_UNITS, GRAVITY, AIR_RESISTANCE, GROUND_FRICTION };
+export { BallPhysics, YARDS_TO_UNITS, GRAVITY, AIR_RESISTANCE, GROUND_FRICTION, HOLE_RADIUS };

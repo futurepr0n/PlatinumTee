@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { eventBus } from '../../js/events.js';
 import { interpretTrackballGesture } from '../../js/shotControls/TrackballGesture.js';
 
+const TRACKBALL_SIZE = 180;
+const SPIN_DAMPING = 0.9;
+const SPIN_INPUT_SCALE = 0.009;
+
 export class TrackballControl {
     constructor(containerId, canvasHostId, powerPreviewId) {
         this.container = document.getElementById(containerId);
@@ -13,7 +17,12 @@ export class TrackballControl {
         this.scene = null;
         this.camera = null;
         this.ball = null;
+        this.ballMaterial = null;
+        this.chargeRing = null;
         this.finishTimer = null;
+        this.spinVelocity = new THREE.Vector2();
+        this.heft = 0;
+        this.lastFrameTime = performance.now();
 
         this.initScene();
         this.setupPointerEvents();
@@ -28,7 +37,8 @@ export class TrackballControl {
         this.camera.position.set(0, 0, 5);
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        this.renderer.setSize(150, 150);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        this.renderer.setSize(TRACKBALL_SIZE, TRACKBALL_SIZE);
         this.canvasHost.appendChild(this.renderer.domElement);
 
         const light = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -36,14 +46,81 @@ export class TrackballControl {
         this.scene.add(light);
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-        const geometry = new THREE.SphereGeometry(1.25, 48, 48);
-        const material = new THREE.MeshStandardMaterial({
+        const shadow = new THREE.Mesh(
+            new THREE.CircleGeometry(1.45, 48),
+            new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22 })
+        );
+        shadow.position.set(0, -1.28, -0.65);
+        shadow.scale.set(1.15, 0.22, 1);
+        this.scene.add(shadow);
+
+        this.chargeRing = new THREE.Mesh(
+            new THREE.TorusGeometry(1.52, 0.035, 12, 96),
+            new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.24 })
+        );
+        this.chargeRing.position.set(0, 0, -0.08);
+        this.scene.add(this.chargeRing);
+
+        const geometry = new THREE.SphereGeometry(1.1, 64, 64);
+        this.ballMaterial = new THREE.MeshStandardMaterial({
             color: 0xfff1c2,
-            roughness: 0.35,
-            metalness: 0.05
+            emissive: 0x3a2400,
+            emissiveIntensity: 0.08,
+            roughness: 0.42,
+            metalness: 0.04
         });
-        this.ball = new THREE.Mesh(geometry, material);
+        this.ball = new THREE.Mesh(geometry, this.ballMaterial);
         this.scene.add(this.ball);
+
+        const equator = new THREE.Mesh(
+            new THREE.TorusGeometry(1.13, 0.018, 8, 96),
+            new THREE.MeshBasicMaterial({ color: 0x7c5f2c, transparent: true, opacity: 0.35 })
+        );
+        equator.rotation.x = Math.PI / 2;
+        this.ball.add(equator);
+
+        const meridian = equator.clone();
+        meridian.rotation.y = Math.PI / 2;
+        this.ball.add(meridian);
+
+        const crossMeridian = equator.clone();
+        crossMeridian.rotation.x = Math.PI / 2;
+        crossMeridian.rotation.y = Math.PI / 3;
+        this.ball.add(crossMeridian);
+
+        [
+            [0.25, 0.45, 0.12],
+            [1.35, -0.18, 0.09],
+            [2.3, 0.28, 0.07],
+            [3.4, -0.42, 0.11],
+            [4.4, 0.12, 0.08],
+            [5.35, -0.3, 0.1]
+        ].forEach(([theta, phi, radius]) => this.addSurfaceMark(theta, phi, radius));
+    }
+
+    addSurfaceMark(theta, phi, radius) {
+        if (!this.ball) return;
+
+        const mark = new THREE.Mesh(
+            new THREE.CircleGeometry(radius, 24),
+            new THREE.MeshBasicMaterial({
+                color: 0x5f4b26,
+                transparent: true,
+                opacity: 0.62,
+                side: THREE.DoubleSide
+            })
+        );
+        const sphereRadius = 1.115;
+        const y = Math.sin(phi) * sphereRadius;
+        const ringRadius = Math.cos(phi) * sphereRadius;
+
+        mark.position.set(
+            Math.cos(theta) * ringRadius,
+            y,
+            Math.sin(theta) * ringRadius
+        );
+        mark.lookAt(mark.position.clone().multiplyScalar(2));
+        this.ball.add(mark);
     }
 
     setupPointerEvents() {
@@ -69,6 +146,7 @@ export class TrackballControl {
         this.dragging = true;
         this.points = [this.getPoint(event)];
         this.container.setPointerCapture(event.pointerId);
+        this.heft = 0.35;
         this.updatePowerPreview(0);
     }
 
@@ -81,12 +159,13 @@ export class TrackballControl {
         this.points.push(point);
 
         if (this.ball && previous) {
-            this.ball.rotation.x += (previous.y - point.y) * 0.02;
-            this.ball.rotation.z += (point.x - previous.x) * 0.02;
+            this.spinVelocity.x += (point.y - previous.y) * SPIN_INPUT_SCALE;
+            this.spinVelocity.y += (point.x - previous.x) * SPIN_INPUT_SCALE;
         }
 
         const result = interpretTrackballGesture(this.points);
         this.updatePowerPreview(result.valid ? result.intent.power : 0);
+        this.heft = result.valid ? Math.max(this.heft, result.intent.power) : this.heft;
 
         if (result.valid && this.isOutsideControl(point)) {
             this.finishGesture(point, false);
@@ -152,6 +231,7 @@ export class TrackballControl {
         this.clearFallbackFinish();
         this.dragging = false;
         this.points = [];
+        this.heft = 0;
         this.updatePowerPreview(0);
     }
 
@@ -167,8 +247,32 @@ export class TrackballControl {
 
     animate() {
         requestAnimationFrame(() => this.animate());
+        this.updateVisualPhysics();
         if (this.renderer && this.scene && this.camera) {
             this.renderer.render(this.scene, this.camera);
+        }
+    }
+
+    updateVisualPhysics() {
+        if (!this.ball) return;
+
+        const now = performance.now();
+        const dt = Math.min((now - this.lastFrameTime) / 16.67, 2);
+        this.lastFrameTime = now;
+
+        this.ball.rotation.x += this.spinVelocity.x * dt;
+        this.ball.rotation.y += this.spinVelocity.y * dt;
+        this.spinVelocity.multiplyScalar(Math.pow(SPIN_DAMPING, dt));
+
+        if (this.ballMaterial) {
+            this.ballMaterial.emissiveIntensity = 0.08 + this.heft * 0.16;
+        }
+
+        if (this.chargeRing) {
+            const ringScale = 1 + this.heft * 0.1;
+            this.chargeRing.scale.set(ringScale, ringScale, 1);
+            this.chargeRing.material.opacity = 0.2 + this.heft * 0.35;
+            this.chargeRing.rotation.z += 0.01 * dt;
         }
     }
 

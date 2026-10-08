@@ -251,21 +251,82 @@ button {
 }
 #trackball-control {
     display: none;
-    width: 230px;
+    width: 255px;
     margin: 8px auto 0;
-    padding: 10px 12px;
+    padding: 12px 14px;
     border-radius: 8px;
-    background: rgba(17, 24, 39, 0.82);
+    background: linear-gradient(180deg, rgba(17, 24, 39, 0.9), rgba(10, 15, 28, 0.86));
     color: white;
     touch-action: none;
     user-select: none;
+    cursor: grab;
+    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.24), 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+#trackball-control:active {
+    cursor: grabbing;
+}
+#trackball-stage {
+    position: relative;
+    width: 180px;
+    height: 226px;
+    margin: 0 auto;
 }
 #trackball-canvas {
-    width: 150px;
-    height: 150px;
-    margin: 0 auto;
+    position: absolute;
+    left: 0;
+    top: 23px;
+    width: 180px;
+    height: 180px;
     border-radius: 50%;
-    background: radial-gradient(circle at 45% 35%, rgba(255,255,255,0.35), rgba(245,158,11,0.22) 55%, rgba(0,0,0,0.25));
+    background:
+        radial-gradient(circle at 47% 42%, rgba(255,255,255,0.18), transparent 20%),
+        radial-gradient(circle at 50% 55%, rgba(245,158,11,0.32), rgba(0,0,0,0.34) 68%, rgba(0,0,0,0.58));
+    box-shadow: inset 0 14px 28px rgba(255,255,255,0.08), inset 0 -22px 38px rgba(0,0,0,0.36);
+}
+.trackball-step {
+    position: absolute;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #fbbf24;
+    font-size: 11px;
+    line-height: 1;
+    pointer-events: none;
+    text-transform: uppercase;
+    transform: translateX(-50%);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.75);
+    white-space: nowrap;
+}
+.trackball-step span {
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 2px;
+    background: #f59e0b;
+    color: #111827;
+    font-size: 12px;
+}
+.trackball-step::after {
+    content: "";
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+}
+.trackball-step-back {
+    bottom: 0;
+}
+.trackball-step-back::after {
+    border-top: 14px solid #f59e0b;
+}
+.trackball-step-forward {
+    top: 0;
+}
+.trackball-step-forward::after {
+    order: -1;
+    border-bottom: 14px solid #f59e0b;
 }
 #trackball-guide,
 #trackball-power-preview {

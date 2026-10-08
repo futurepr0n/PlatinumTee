@@ -18,8 +18,13 @@ test('index.html places trackball control inside controls after accuracy meter',
     assert.notEqual(trackballIndex, -1);
     assert.ok(trackballIndex > accuracyIndex);
     assert.ok(trackballIndex < swingIndex);
+    assert.match(html, /<div id="trackball-stage">/);
+    assert.match(html, /<div class="trackball-step trackball-step-back">/);
+    assert.match(html, /<b>Pull back<\/b>/);
+    assert.match(html, /<div class="trackball-step trackball-step-forward">/);
+    assert.match(html, /<b>Drive forward<\/b>/);
     assert.match(html, /<div id="trackball-canvas"><\/div>/);
-    assert.match(html, /<div id="trackball-guide">Flick forward through the ball<\/div>/);
+    assert.match(html, /<div id="trackball-guide">Pull back, then drive forward through the ball<\/div>/);
     assert.match(html, /<div id="trackball-power-preview">Power 0%<\/div>/);
 });
 
@@ -30,7 +35,21 @@ test('TrackballControl component renders Three.js control and emits shot request
     assert.match(source, /import \{ eventBus \} from '\.\.\/\.\.\/js\/events\.js';/);
     assert.match(source, /import \{ interpretTrackballGesture \} from '\.\.\/\.\.\/js\/shotControls\/TrackballGesture\.js';/);
     assert.match(source, /new THREE\.WebGLRenderer\(\{ antialias: true, alpha: true \}\)/);
-    assert.match(source, /this\.renderer\.setSize\(150, 150\)/);
+    assert.match(source, /this\.renderer\.setPixelRatio\(Math\.min\(window\.devicePixelRatio \|\| 1, 2\)\)/);
+    assert.match(source, /this\.renderer\.setSize\(TRACKBALL_SIZE, TRACKBALL_SIZE\)/);
+    assert.match(source, /new THREE\.TorusGeometry/);
+    assert.match(source, /addSurfaceMark\(theta, phi, radius\)/);
+    assert.match(source, /new THREE\.CircleGeometry\(radius, 24\)/);
+    assert.match(source, /this\.ball\.add\(mark\)/);
+    assert.match(source, /updateVisualPhysics\(\)/);
+    assert.match(source, /this\.spinVelocity\.x \+= \(point\.y - previous\.y\) \* SPIN_INPUT_SCALE/);
+    assert.match(source, /this\.spinVelocity\.y \+= \(point\.x - previous\.x\) \* SPIN_INPUT_SCALE/);
+    assert.match(source, /this\.ball\.rotation\.x \+= this\.spinVelocity\.x \* dt/);
+    assert.match(source, /this\.ball\.rotation\.y \+= this\.spinVelocity\.y \* dt/);
+    assert.doesNotMatch(source, /this\.ballGroup\.position\.set/);
+    assert.doesNotMatch(source, /this\.ball\.rotation\.z \+= this\.spinVelocity\.y/);
+    assert.doesNotMatch(source, /this\.targetPosition/);
+    assert.doesNotMatch(source, /this\.visualVelocity/);
     assert.match(source, /this\.container\.addEventListener\('pointerleave', \(event\) => this\.handlePointerLeave\(event\)\)/);
     assert.match(source, /result\.valid && this\.isOutsideControl\(point\)/);
     assert.match(source, /getBoundingClientRect\(\)/);

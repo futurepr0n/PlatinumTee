@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Golf Game with Realistic Distances</title>
-    <link rel="stylesheet" href="style.css?v=trackball-controls">
+    <link rel="stylesheet" href="style.css?v=trackball-heft">
 </head>
 <body>
     <div id="container"></div>
@@ -43,8 +43,18 @@
             <div id="meter-label">ACCURACY - CLICK WHEN CENTERED!</div>
         </div>
         <div id="trackball-control">
-            <div id="trackball-canvas"></div>
-            <div id="trackball-guide">Flick forward through the ball</div>
+            <div id="trackball-stage">
+                <div class="trackball-step trackball-step-back">
+                    <span>1</span>
+                    <b>Pull back</b>
+                </div>
+                <div id="trackball-canvas"></div>
+                <div class="trackball-step trackball-step-forward">
+                    <span>2</span>
+                    <b>Drive forward</b>
+                </div>
+            </div>
+            <div id="trackball-guide">Pull back, then drive forward through the ball</div>
             <div id="trackball-power-preview">Power 0%</div>
         </div>
         <button id="swing-btn">SWING</button>
@@ -92,6 +102,6 @@
     </script>
     
     <!-- Load modules using ES modules -->
-    <script type="module" src="js/main.js?v=20260510-2"></script>
+    <script type="module" src="js/main.js?v=putting-phase-1"></script>
 </body>
 </html>
