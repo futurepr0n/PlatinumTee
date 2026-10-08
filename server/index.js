@@ -33,7 +33,7 @@ export function resolveStaticPath(root, urlPath) {
 
     const segments = decoded.split('/').filter(Boolean);
     if (segments.some(segment => segment.startsWith('.'))) return null;
-    if (BLOCKED_TOP_LEVEL.has(segments[0])) return null;
+    if (BLOCKED_TOP_LEVEL.has(segments[0]?.toLowerCase())) return null;
 
     const fullPath = path.resolve(root, ...segments);
     return fullPath.startsWith(root + path.sep) ? fullPath : null;
@@ -60,7 +60,7 @@ export function createServer({ port = 8000, registry = new RoomRegistry() } = {}
 
     const send = (connId, type, payload) => {
         const socket = sockets.get(connId);
-        if (socket?.readyState === socket?.OPEN) socket.send(encode(type, payload));
+        if (socket && socket.readyState === socket.OPEN) socket.send(encode(type, payload));
     };
     const sendRoster = room => send(room.hostConnId, MSG.ROOM_PLAYERS, { players: registry.publicPlayers(room) });
     const sendToPlayers = (room, type, payload) => {
@@ -104,14 +104,20 @@ export function createServer({ port = 8000, registry = new RoomRegistry() } = {}
         const connection = { lastShotAt: 0 };
         sockets.set(connId, socket);
 
+        socket.on('error', () => socket.terminate());
+
         socket.on('message', (raw) => {
-            const message = decode(raw);
-            const handler = message && handlers[message.type];
-            if (!handler) {
+            try {
+                const message = decode(raw);
+                const handler = message && handlers[message.type];
+                if (!handler) {
+                    send(connId, MSG.ERROR, { code: 'BAD_MESSAGE' });
+                    return;
+                }
+                handler(connId, message.payload, registry.lookup(connId), connection);
+            } catch {
                 send(connId, MSG.ERROR, { code: 'BAD_MESSAGE' });
-                return;
             }
-            handler(connId, message.payload, registry.lookup(connId), connection);
         });
 
         socket.on('close', () => {

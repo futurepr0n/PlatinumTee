@@ -25,7 +25,8 @@ function connect(port) {
                 if (index >= 0) return Promise.resolve(inbox.splice(index, 1)[0].payload);
                 return new Promise(done => waiters.push({ type, resolve: done }));
             },
-            close: () => ws.close()
+            close: () => ws.close(),
+            raw: ws
         }));
     });
 }
@@ -120,5 +121,25 @@ test('players cannot forge game updates', async () => {
         assert.equal((await b.next(MSG.GAME_UPDATE)).phase, 'real');
 
         [a, b, host].forEach(client => client.close());
+    });
+});
+
+test('resolveStaticPath blocks blocked folders regardless of case', () => {
+    const root = path.resolve('/srv/app');
+    assert.equal(resolveStaticPath(root, '/SERVER/index.js'), null);
+    assert.equal(resolveStaticPath(root, '/Tests/x'), null);
+});
+
+test('oversize frame disconnects that client and server keeps serving', async () => {
+    await withServer(async (port) => {
+        const flood = await connect(port);
+        const closed = new Promise(resolve => flood.raw.addEventListener('close', resolve));
+        flood.raw.send('x'.repeat(5000));
+        await closed;
+
+        const host = await connect(port);
+        host.send(MSG.HOST_CREATE);
+        assert.match((await host.next(MSG.ROOM_CREATED)).code, /^[A-Z]{4}$/);
+        host.close();
     });
 });
