@@ -42,8 +42,13 @@ export class RoomRegistry {
         const room = this.findRoom(rawCode);
         if (!room) return { error: 'ROOM_NOT_FOUND' };
 
+        if (typeof token !== 'string') return { error: 'INVALID_TOKEN' };
         const player = [...room.players.values()].find(candidate => candidate.token === token);
-        if (!player || typeof token !== 'string') return { error: 'INVALID_TOKEN' };
+        if (!player) return { error: 'INVALID_TOKEN' };
+
+        const existing = this.connections.get(connId);
+        const isSameSlot = existing?.role === 'player' && existing.playerId === player.id && existing.code === room.code;
+        if (existing && !isSameSlot) return { error: 'ALREADY_IN_ROOM' };
 
         if (player.connId) this.connections.delete(player.connId);
         player.connId = connId;
